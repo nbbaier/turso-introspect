@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { introspect } from './commands/introspect.js';
