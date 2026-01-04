@@ -1,8 +1,9 @@
 import fs from 'fs/promises';
-import chalk from 'chalk';
 import { createDbClient } from '../lib/db.js';
 import { introspectSchema, type IntrospectOptions } from '../lib/schema.js';
 import { formatSql, formatJson } from '../lib/formatter.js';
+import { invalidArgsError, connectionError } from '../lib/errors.js';
+import { Logger } from '../lib/logger.js';
 
 interface CommandOptions {
   org?: string;
@@ -20,9 +21,15 @@ interface CommandOptions {
 }
 
 export async function introspect(database: string | undefined, options: CommandOptions) {
+  const logger = new Logger({ quiet: options.quiet, verbose: options.verbose });
+
   if (!database) {
-     console.error(chalk.red('Error: Database argument is required.'));
-     process.exit(1);
+    throw invalidArgsError('Database argument is required.');
+  }
+
+  const format = options.format ?? 'sql';
+  if (format !== 'sql' && format !== 'json') {
+    throw invalidArgsError(`Invalid --format: "${format}". Use "sql" or "json".`);
   }
 
   const client = await createDbClient({
@@ -31,32 +38,37 @@ export async function introspect(database: string | undefined, options: CommandO
     token: options.token,
   });
 
-  if (options.check) {
-    try {
-      await client.execute('SELECT 1');
-      if (!options.quiet) console.log(chalk.green('Connection successful!'));
-      return;
-    } catch (e: any) {
-      console.error(chalk.red('Connection failed:'), e.message);
-      process.exit(1);
-    }
-  }
-
-  if (!options.quiet && !options.stdout) {
-    console.log(chalk.blue(`Introspecting ${database}...`));
-  }
-
-  const introspectOptions: IntrospectOptions = {
-    tables: options.tables ? options.tables.split(',') : undefined,
-    excludeTables: options.excludeTables ? options.excludeTables.split(',') : undefined,
-    includeSystem: options.includeSystem,
-  };
-
   try {
+    if (options.check) {
+      try {
+        await client.execute('SELECT 1');
+        logger.success('Connection successful!');
+        return;
+      } catch (e: any) {
+        throw connectionError(`Connection failed: ${e.message}`);
+      }
+    }
+
+    if (!options.stdout) {
+      logger.info(`Introspecting ${database}...`);
+    }
+
+    const introspectOptions: IntrospectOptions = {
+      tables: options.tables ? options.tables.split(',') : undefined,
+      excludeTables: options.excludeTables ? options.excludeTables.split(',') : undefined,
+      includeSystem: options.includeSystem,
+    };
+
     const schema = await introspectSchema(client, database, introspectOptions);
 
+    if (schema.tables.length === 0 && schema.views.length === 0 && schema.triggers.length === 0) {
+      logger.warn('No user tables found in database.');
+    }
+
+    logger.verbose(`Found ${schema.tables.length} tables, ${schema.views.length} views, ${schema.triggers.length} triggers`);
+
     let output = '';
-    if (options.format === 'json') {
+    if (format === 'json') {
       output = formatJson(schema);
     } else {
       output = formatSql(schema);
@@ -65,17 +77,11 @@ export async function introspect(database: string | undefined, options: CommandO
     if (options.stdout) {
       console.log(output);
     } else {
-      const defaultFilename = `${database.replace(/[^a-zA-Z0-9]/g, '_')}-schema.${options.format || 'sql'}`;
+      const defaultFilename = `${database.replace(/[^a-zA-Z0-9]/g, '_')}-schema.${format}`;
       const outputPath = options.output || defaultFilename;
       await fs.writeFile(outputPath, output);
-      if (!options.quiet) {
-        console.log(chalk.green(`Schema saved to ${outputPath}`));
-      }
+      logger.success(`Schema saved to ${outputPath}`);
     }
-
-  } catch (error: any) {
-    console.error(chalk.red('Error during introspection:'), error.message);
-    process.exit(1);
   } finally {
     client.close();
   }

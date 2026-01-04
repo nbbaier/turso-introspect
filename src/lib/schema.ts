@@ -1,4 +1,5 @@
 import type { Client } from '@libsql/client';
+import { quoteIdent } from './utils.js';
 
 export interface Column {
   cid: number;
@@ -108,7 +109,7 @@ export async function introspectSchema(client: Client, dbName: string, options: 
     const tableSql = sqlRes.rows[0]?.sql as string || '';
 
     // Get columns
-    const columnsRes = await client.execute(`PRAGMA table_info("${tableName}")`);
+    const columnsRes = await client.execute(`PRAGMA table_info(${quoteIdent(tableName)})`);
     const columns: Column[] = columnsRes.rows.map(r => ({
       cid: Number(r.cid),
       name: String(r.name),
@@ -119,7 +120,7 @@ export async function introspectSchema(client: Client, dbName: string, options: 
     }));
 
     // Get foreign keys
-    const fkRes = await client.execute(`PRAGMA foreign_key_list("${tableName}")`);
+    const fkRes = await client.execute(`PRAGMA foreign_key_list(${quoteIdent(tableName)})`);
     const foreignKeys: ForeignKey[] = fkRes.rows.map(r => ({
       id: Number(r.id),
       seq: Number(r.seq),
@@ -132,7 +133,7 @@ export async function introspectSchema(client: Client, dbName: string, options: 
     }));
 
     // Get indexes
-    const idxListRes = await client.execute(`PRAGMA index_list("${tableName}")`);
+    const idxListRes = await client.execute(`PRAGMA index_list(${quoteIdent(tableName)})`);
     const indexes: Index[] = [];
     
     for (const idxRow of idxListRes.rows) {
@@ -156,7 +157,7 @@ export async function introspectSchema(client: Client, dbName: string, options: 
       
       const idxSql = idxSqlRes.rows[0]?.sql as string | undefined;
 
-      const idxInfoRes = await client.execute(`PRAGMA index_info("${idxName}")`);
+      const idxInfoRes = await client.execute(`PRAGMA index_info(${quoteIdent(idxName)})`);
       const idxColumns = idxInfoRes.rows.map(r => String(r.name));
 
       indexes.push({
