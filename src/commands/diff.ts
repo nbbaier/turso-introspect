@@ -30,7 +30,7 @@ async function getSchemaSql(source: string, options: DiffOptions): Promise<strin
   }
 
   // Assume it's a database
-  const client = createDbClient({
+  const client = await createDbClient({
     database: source,
     org: options.org,
     token: options.token

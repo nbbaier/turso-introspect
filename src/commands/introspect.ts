@@ -25,7 +25,7 @@ export async function introspect(database: string | undefined, options: CommandO
      process.exit(1);
   }
 
-  const client = createDbClient({
+  const client = await createDbClient({
     database,
     org: options.org,
     token: options.token,
