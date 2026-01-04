@@ -51,6 +51,7 @@ async function getTursoPlatformToken(): Promise<string | undefined> {
 function isPlatformToken(token: string): boolean {
 	try {
 		const [header] = token.split(".");
+		if (!header) return false;
 		const decoded = JSON.parse(Buffer.from(header, "base64url").toString());
 		return decoded.alg === "RS256";
 	} catch {
@@ -77,7 +78,7 @@ async function createDatabaseToken(
 		throw new Error(`Failed to create database token: ${response.status} ${text}`);
 	}
 
-	const data = await response.json();
+	const data = await response.json() as { jwt: string };
 	return data.jwt;
 }
 

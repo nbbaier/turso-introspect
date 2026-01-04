@@ -49,8 +49,9 @@ export async function introspect(
 				await client.execute("SELECT 1");
 				logger.success("Connection successful!");
 				return;
-			} catch (e: any) {
-				throw connectionError(`Connection failed: ${e.message}`);
+			} catch (e: unknown) {
+				const message = e && typeof e === "object" && "message" in e ? String(e.message) : String(e);
+			throw connectionError(`Connection failed: ${message}`);
 			}
 		}
 

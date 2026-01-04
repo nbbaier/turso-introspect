@@ -32,8 +32,8 @@ async function getSchemaSql(
 				logger.verbose(`Reading schema from file: ${source}`);
 				return await fs.readFile(source, "utf-8");
 			}
-		} catch (e: any) {
-			if (e.name === "CliError") throw e;
+		} catch (e: unknown) {
+			if (e && typeof e === "object" && "name" in e && e.name === "CliError") throw e;
 		}
 	}
 
@@ -78,7 +78,8 @@ export async function diff(db1: string, db2: string, options: DiffOptions) {
 	const patch = Diff.createTwoFilesPatch(db1, db2, sql1, sql2);
 
 	const diffs = Diff.diffLines(sql1, sql2);
-	if (diffs.length === 1 && !diffs[0].added && !diffs[0].removed) {
+	const firstDiff = diffs[0];
+	if (diffs.length === 1 && firstDiff && !firstDiff.added && !firstDiff.removed) {
 		logger.success("Schemas are identical.");
 		return;
 	}

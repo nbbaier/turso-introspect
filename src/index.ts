@@ -36,12 +36,13 @@ program
 	.action(async (database, options) => {
 		try {
 			await introspect(database, options);
-		} catch (error: any) {
+		} catch (error: unknown) {
 			if (error instanceof CliError) {
 				console.error(chalk.red("Error:"), error.message);
 				process.exit(error.code);
 			}
-			console.error(chalk.red("Error:"), error?.message ?? error);
+			const message = error && typeof error === "object" && "message" in error ? String(error.message) : String(error);
+		console.error(chalk.red("Error:"), message);
 			process.exit(1);
 		}
 	});
@@ -63,12 +64,13 @@ program
 	.action(async (db1, db2, options) => {
 		try {
 			await diff(db1, db2, options);
-		} catch (error: any) {
+		} catch (error: unknown) {
 			if (error instanceof CliError) {
 				console.error(chalk.red("Error:"), error.message);
 				process.exit(error.code);
 			}
-			console.error(chalk.red("Error:"), error?.message ?? error);
+			const message = error && typeof error === "object" && "message" in error ? String(error.message) : String(error);
+		console.error(chalk.red("Error:"), message);
 			process.exit(1);
 		}
 	});
