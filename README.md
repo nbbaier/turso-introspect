@@ -33,19 +33,36 @@ turso-introspect mydb --org myorg --stdout
 
 ## Authentication
 
-The CLI supports two authentication methods:
+The CLI supports three authentication methods (in order of precedence):
 
-1. **Environment variable** (recommended for CI/CD):
+1. **Command-line flag** (highest priority):
+   ```bash
+   turso-introspect mydb --org myorg --token "your-token"
+   ```
 
+2. **Environment variable** (recommended for CI/CD):
    ```bash
    export TURSO_AUTH_TOKEN="your-token"
    turso-introspect mydb --org myorg
    ```
 
-2. **Command-line flag** (takes precedence over env var):
+3. **Turso CLI authentication** (automatic):
    ```bash
-   turso-introspect mydb --org myorg --token "your-token"
+   # If you're logged in via the Turso CLI, no token is needed
+   turso auth login
+   turso-introspect mydb --org myorg
    ```
+
+### Token Types
+
+The CLI automatically handles both token types:
+
+- **Platform tokens** (from `turso auth login` or `turso auth token`): Used to manage Turso resources. When detected, the CLI automatically exchanges it for a database token via the Turso API.
+- **Database tokens** (from `turso db tokens create <db>`): Used directly for database connections.
+
+You can use either token type with `--token` or `TURSO_AUTH_TOKEN`. The CLI detects which type you've provided and handles it appropriately.
+
+> **Note**: When using platform tokens, the `--org` flag is required to generate database tokens.
 
 ## Database Identification
 
@@ -131,5 +148,6 @@ Subcommands:
 ```bash
 bun install
 bun run src/index.ts --help
-bun run build
+bun run build        # Build with tsdown
+bun run dev          # Watch mode
 ```

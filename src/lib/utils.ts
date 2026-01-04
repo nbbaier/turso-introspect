@@ -1,3 +1,3 @@
 export function quoteIdent(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
+	return `"${name.replace(/"/g, '""')}"`;
 }
