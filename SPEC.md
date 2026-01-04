@@ -33,6 +33,7 @@ turso-introspect mydb --org myorg --format json
 The CLI supports two authentication methods:
 
 1. **Environment variable** (recommended for CI/CD):
+
    ```bash
    export TURSO_AUTH_TOKEN="your-token"
    turso-introspect mydb --org myorg
@@ -65,11 +66,12 @@ turso-introspect mydb --org myorg
 ### SQL (default)
 
 Produces executable SQL with:
-- Tables sorted in topological order based on foreign key dependencies
-- Foreign key constraints as separate `ALTER TABLE` statements (enables order-independent execution)
-- Indexes, views, and triggers included
-- Virtual tables (FTS5, R-tree, etc.) output as comments only
-- Minimal header comment with generation timestamp
+
+-  Tables sorted in topological order based on foreign key dependencies
+-  Foreign key constraints as separate `ALTER TABLE` statements (enables order-independent execution)
+-  Indexes, views, and triggers included
+-  Virtual tables (FTS5, R-tree, etc.) output as comments only
+-  Minimal header comment with generation timestamp
 
 ### JSON
 
@@ -92,9 +94,10 @@ Structured output with categorized schema objects:
 ## Output Destination
 
 Default behavior:
-- Outputs to `{database-name}-schema.sql` (or `.json`) in current directory
-- Use `-o/--output` to specify exact path
-- Use `--stdout` to write to stdout instead of file
+
+-  Outputs to `{database-name}-schema.sql` (or `.json`) in current directory
+-  Use `-o/--output` to specify exact path
+-  Use `--stdout` to write to stdout instead of file
 
 ```bash
 # Default: creates mydb-schema.sql
@@ -110,15 +113,17 @@ turso-introspect mydb --org myorg --stdout > schema.sql
 ## Schema Scope
 
 ### Included by Default
-- Tables (with columns, primary keys, constraints)
-- Indexes (excluding auto-created internal indexes)
-- Views
-- Triggers
+
+-  Tables (with columns, primary keys, constraints)
+-  Indexes (excluding auto-created internal indexes)
+-  Views
+-  Triggers
 
 ### Excluded by Default
-- SQLite internal tables (`sqlite_sequence`, `sqlite_stat1`, etc.)
-- libsql system tables (`_litestream_*`)
-- Virtual tables (output as comments)
+
+-  SQLite internal tables (`sqlite_sequence`, `sqlite_stat1`, etc.)
+-  libsql system tables (`_litestream_*`)
+-  Virtual tables (output as comments)
 
 Use `--include-system` to include system tables.
 
@@ -140,9 +145,10 @@ turso-introspect mydb --org myorg --tables users,posts --exclude-tables user_tem
 ## Default Value Handling
 
 SQLite columns can have complex DEFAULT expressions. The CLI:
-- Preserves default values exactly as stored
-- Warns if a default looks potentially problematic
-- Use `--normalize-defaults` to normalize common patterns (e.g., various `CURRENT_TIMESTAMP` forms)
+
+-  Preserves default values exactly as stored
+-  Warns if a default looks potentially problematic
+-  Use `--normalize-defaults` to normalize common patterns (e.g., various `CURRENT_TIMESTAMP` forms)
 
 ## Schema Diff Command
 
@@ -164,8 +170,8 @@ turso-introspect diff db1 db2 --org myorg --diff-format diff
 
 ## Connection Handling
 
-- Retries failed connections 3 times with exponential backoff
-- Use `--check` flag to validate connectivity and permissions without producing output
+-  Retries failed connections 3 times with exponential backoff
+-  Use `--check` flag to validate connectivity and permissions without producing output
 
 ```bash
 # Verify connection only
@@ -190,8 +196,9 @@ turso-introspect mydb --org myorg -v
 ## Empty Database Handling
 
 If the database has no user tables:
-- Outputs an empty schema file (SQL comment header only, or empty JSON structure)
-- Prints warning to stderr
+
+-  Outputs an empty schema file (SQL comment header only, or empty JSON structure)
+-  Prints warning to stderr
 
 ## CLI Reference
 
@@ -226,33 +233,33 @@ Subcommands:
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
+| Variable           | Description                        |
+| ------------------ | ---------------------------------- |
 | `TURSO_AUTH_TOKEN` | Authentication token for Turso API |
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | Connection or authentication error |
-| 2 | Invalid arguments |
-| 3 | Database not found |
+| Code | Meaning                            |
+| ---- | ---------------------------------- |
+| 0    | Success                            |
+| 1    | Connection or authentication error |
+| 2    | Invalid arguments                  |
+| 3    | Database not found                 |
 
 ## Technical Implementation
 
-- **Runtime**: Bun (TypeScript)
-- **Database client**: `@libsql/client`
-- **CLI framework**: TBD (commander, yargs, or citty)
-- **Distribution**: npm package with `bun build --compile` for optional standalone binary
+-  **Runtime**: Bun (TypeScript)
+-  **Database client**: `@libsql/client`
+-  **CLI framework**: TBD (commander, yargs, or citty)
+-  **Distribution**: npm package with `bun build --compile` for optional standalone binary
 
 ## Schema Introspection Details
 
 The tool queries SQLite system tables to extract schema:
 
-- `sqlite_master` - Table definitions, views, triggers, indexes
-- `pragma_table_info()` - Column details
-- `pragma_foreign_key_list()` - Foreign key relationships
-- `pragma_index_list()` / `pragma_index_info()` - Index details
+-  `sqlite_master` - Table definitions, views, triggers, indexes
+-  `pragma_table_info()` - Column details
+-  `pragma_foreign_key_list()` - Foreign key relationships
+-  `pragma_index_list()` / `pragma_index_info()` - Index details
 
 Foreign keys are output as separate ALTER TABLE statements to ensure the SQL can be executed in any order without dependency issues.
