@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import * as Diff from "diff";
 import { createDbClient } from "../lib/db.js";
-import { invalidArgsError } from "../lib/errors.js";
+import { CliError, invalidArgsError } from "../lib/errors.js";
 import { formatSql } from "../lib/formatter.js";
 import { Logger } from "../lib/logger.js";
 import { introspectSchema } from "../lib/schema.js";
@@ -55,8 +55,7 @@ async function getSchemaSql(
 				}
 			}
 		} catch (e: unknown) {
-			if (e && typeof e === "object" && "name" in e && e.name === "CliError")
-				throw e;
+			if (e instanceof CliError) throw e;
 		}
 	}
 

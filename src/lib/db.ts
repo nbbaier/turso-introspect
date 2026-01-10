@@ -6,7 +6,7 @@ import {
 	type Client,
 	createClient as createLibsqlClient,
 } from "@libsql/client";
-import { notFoundError } from "./errors.js";
+import { CliError, notFoundError } from "./errors.js";
 import { withRetry } from "./retry.js";
 
 export interface ConnectionConfig {
@@ -70,12 +70,7 @@ async function ensureLocalDbFileExists(path: string): Promise<void> {
 			throw notFoundError(`"${path}" is not a file.`);
 		}
 	} catch (error: unknown) {
-		if (
-			error &&
-			typeof error === "object" &&
-			"name" in error &&
-			error.name === "CliError"
-		) {
+		if (error instanceof CliError) {
 			throw error;
 		}
 		throw notFoundError(`Local database file not found: "${path}"`);
@@ -204,7 +199,14 @@ export async function createDbClient(
 				return (...args: unknown[]) =>
 					withRetry(() => originalMethod.apply(target, args), retryOptions);
 			}
-			return Reflect.get(target, prop, receiver);
+
+			const value = Reflect.get(target, prop, receiver);
+
+			if (typeof value === "function") {
+				return value.bind(target);
+			}
+
+			return value;
 		},
 	});
 }
