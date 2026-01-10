@@ -43,7 +43,9 @@ export async function introspect(
 		options.retries !== undefined &&
 		(!Number.isFinite(options.retries) || options.retries < 0)
 	) {
-		throw invalidArgsError(`Invalid --retries: "${options.retries}". Use a non-negative integer.`);
+		throw invalidArgsError(
+			`Invalid --retries: "${options.retries}". Use a non-negative integer.`,
+		);
 	}
 	if (
 		options.retryDelay !== undefined &&
@@ -69,8 +71,11 @@ export async function introspect(
 				logger.success("Connection successful!");
 				return;
 			} catch (e: unknown) {
-				const message = e && typeof e === "object" && "message" in e ? String(e.message) : String(e);
-			throw connectionError(`Connection failed: ${message}`);
+				const message =
+					e && typeof e === "object" && "message" in e
+						? String(e.message)
+						: String(e);
+				throw connectionError(`Connection failed: ${message}`);
 			}
 		}
 

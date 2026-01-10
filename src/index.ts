@@ -1,9 +1,8 @@
-import chalk from "chalk";
 import { Command } from "commander";
 import pkg from "../package.json";
 import { diff } from "./commands/diff.js";
 import { introspect } from "./commands/introspect.js";
-import { CliError } from "./lib/errors.js";
+import { handleError } from "./lib/errors.js";
 
 const program = new Command();
 
@@ -52,13 +51,7 @@ program
 		try {
 			await introspect(database, options);
 		} catch (error: unknown) {
-			if (error instanceof CliError) {
-				console.error(chalk.red("Error:"), error.message);
-				process.exit(error.code);
-			}
-			const message = error && typeof error === "object" && "message" in error ? String(error.message) : String(error);
-		console.error(chalk.red("Error:"), message);
-			process.exit(1);
+			handleError(error);
 		}
 	});
 
@@ -92,13 +85,7 @@ program
 		try {
 			await diff(db1, db2, options);
 		} catch (error: unknown) {
-			if (error instanceof CliError) {
-				console.error(chalk.red("Error:"), error.message);
-				process.exit(error.code);
-			}
-			const message = error && typeof error === "object" && "message" in error ? String(error.message) : String(error);
-		console.error(chalk.red("Error:"), message);
-			process.exit(1);
+			handleError(error);
 		}
 	});
 

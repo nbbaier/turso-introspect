@@ -55,7 +55,8 @@ async function getSchemaSql(
 				}
 			}
 		} catch (e: unknown) {
-			if (e && typeof e === "object" && "name" in e && e.name === "CliError") throw e;
+			if (e && typeof e === "object" && "name" in e && e.name === "CliError")
+				throw e;
 		}
 	}
 
@@ -90,7 +91,9 @@ export async function diff(db1: string, db2: string, options: DiffOptions) {
 		options.retries !== undefined &&
 		(!Number.isFinite(options.retries) || options.retries < 0)
 	) {
-		throw invalidArgsError(`Invalid --retries: "${options.retries}". Use a non-negative integer.`);
+		throw invalidArgsError(
+			`Invalid --retries: "${options.retries}". Use a non-negative integer.`,
+		);
 	}
 	if (
 		options.retryDelay !== undefined &&
@@ -118,7 +121,12 @@ export async function diff(db1: string, db2: string, options: DiffOptions) {
 
 	const diffs = Diff.diffLines(sql1, sql2);
 	const firstDiff = diffs[0];
-	if (diffs.length === 1 && firstDiff && !firstDiff.added && !firstDiff.removed) {
+	if (
+		diffs.length === 1 &&
+		firstDiff &&
+		!firstDiff.added &&
+		!firstDiff.removed
+	) {
 		logger.success("Schemas are identical.");
 		return;
 	}
