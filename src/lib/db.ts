@@ -37,13 +37,24 @@ export function resolveDatabaseUrl(database: string, org?: string): string {
 }
 
 function looksLikeLocalDatabasePath(input: string): boolean {
-	if (input.startsWith("file:")) return false;
-	if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)) return false;
-	if (input === "~" || input.startsWith("~/")) return true;
-	if (input.startsWith("./") || input.startsWith("../")) return true;
-	if (input.startsWith("/") || input.includes("/") || input.includes("\\")) return true;
-	if (/^[a-zA-Z]:[\\/]/.test(input)) return true;
-	return /\.(db|sqlite|sqlite3|db3)$/i.test(input);
+	if (
+		input.startsWith("file:") ||
+		/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)
+	) {
+		return false;
+	}
+
+	return (
+		input === "~" ||
+		input.startsWith("~/") ||
+		input.startsWith("./") ||
+		input.startsWith("../") ||
+		input.startsWith("/") ||
+		input.includes("/") ||
+		input.includes("\\") ||
+		/^[a-zA-Z]:[\\/]/.test(input) ||
+		/\.(db|sqlite|sqlite3|db3)$/i.test(input)
+	);
 }
 
 function expandHome(input: string): string {
@@ -59,7 +70,12 @@ async function ensureLocalDbFileExists(path: string): Promise<void> {
 			throw notFoundError(`"${path}" is not a file.`);
 		}
 	} catch (error: unknown) {
-		if (error && typeof error === "object" && "name" in error && error.name === "CliError") {
+		if (
+			error &&
+			typeof error === "object" &&
+			"name" in error &&
+			error.name === "CliError"
+		) {
 			throw error;
 		}
 		throw notFoundError(`Local database file not found: "${path}"`);
@@ -111,10 +127,12 @@ async function createDatabaseToken(
 
 	if (!response.ok) {
 		const text = await response.text();
-		throw new Error(`Failed to create database token: ${response.status} ${text}`);
+		throw new Error(
+			`Failed to create database token: ${response.status} ${text}`,
+		);
 	}
 
-	const data = await response.json() as { jwt: string };
+	const data = (await response.json()) as { jwt: string };
 	return data.jwt;
 }
 
@@ -176,27 +194,17 @@ export async function createDbClient(
 		authToken,
 	});
 
+	// Use Proxy to automatically retry execute and batch methods
 	return new Proxy(client, {
 		get(target, prop, receiver) {
-			if (prop === "execute") {
+			if (prop === "execute" || prop === "batch") {
+				const originalMethod = Reflect.get(target, prop, receiver) as (
+					...args: unknown[]
+				) => Promise<unknown>;
 				return (...args: unknown[]) =>
-					withRetry(
-						() => Reflect.apply((target as any).execute, target, args),
-						retryOptions,
-					);
+					withRetry(() => originalMethod.apply(target, args), retryOptions);
 			}
-			if (prop === "batch") {
-				return (...args: unknown[]) =>
-					withRetry(
-						() => Reflect.apply((target as any).batch, target, args),
-						retryOptions,
-					);
-			}
-			const value = Reflect.get(target, prop, receiver);
-			if (typeof value === "function") {
-				return value.bind(target);
-			}
-			return value;
+			return Reflect.get(target, prop, receiver);
 		},
 	});
 }
