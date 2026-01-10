@@ -56,8 +56,11 @@ program
 				console.error(chalk.red("Error:"), error.message);
 				process.exit(error.code);
 			}
-			const message = error && typeof error === "object" && "message" in error ? String(error.message) : String(error);
-		console.error(chalk.red("Error:"), message);
+			const message =
+				error && typeof error === "object" && "message" in error
+					? String(error.message)
+					: String(error);
+			console.error(chalk.red("Error:"), message);
 			process.exit(1);
 		}
 	});
@@ -96,8 +99,11 @@ program
 				console.error(chalk.red("Error:"), error.message);
 				process.exit(error.code);
 			}
-			const message = error && typeof error === "object" && "message" in error ? String(error.message) : String(error);
-		console.error(chalk.red("Error:"), message);
+			const message =
+				error && typeof error === "object" && "message" in error
+					? String(error.message)
+					: String(error);
+			console.error(chalk.red("Error:"), message);
 			process.exit(1);
 		}
 	});

@@ -41,7 +41,8 @@ function looksLikeLocalDatabasePath(input: string): boolean {
 	if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)) return false;
 	if (input === "~" || input.startsWith("~/")) return true;
 	if (input.startsWith("./") || input.startsWith("../")) return true;
-	if (input.startsWith("/") || input.includes("/") || input.includes("\\")) return true;
+	if (input.startsWith("/") || input.includes("/") || input.includes("\\"))
+		return true;
 	if (/^[a-zA-Z]:[\\/]/.test(input)) return true;
 	return /\.(db|sqlite|sqlite3|db3)$/i.test(input);
 }
@@ -59,7 +60,12 @@ async function ensureLocalDbFileExists(path: string): Promise<void> {
 			throw notFoundError(`"${path}" is not a file.`);
 		}
 	} catch (error: unknown) {
-		if (error && typeof error === "object" && "name" in error && error.name === "CliError") {
+		if (
+			error &&
+			typeof error === "object" &&
+			"name" in error &&
+			error.name === "CliError"
+		) {
 			throw error;
 		}
 		throw notFoundError(`Local database file not found: "${path}"`);
@@ -111,10 +117,12 @@ async function createDatabaseToken(
 
 	if (!response.ok) {
 		const text = await response.text();
-		throw new Error(`Failed to create database token: ${response.status} ${text}`);
+		throw new Error(
+			`Failed to create database token: ${response.status} ${text}`,
+		);
 	}
 
-	const data = await response.json() as { jwt: string };
+	const data = (await response.json()) as { jwt: string };
 	return data.jwt;
 }
 
