@@ -1,12 +1,11 @@
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function errorMessage(error: unknown): string {
-	if (error && typeof error === "object" && "message" in error) {
-		return String((error as { message: unknown }).message);
-	}
-	return String(error);
+	return error && typeof error === "object" && "message" in error
+		? String(error.message)
+		: String(error);
 }
 
 export interface RetryOptions {

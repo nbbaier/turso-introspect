@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import { createDbClient } from "../lib/db.js";
-import { connectionError, invalidArgsError } from "../lib/errors.js";
+import { CliError, connectionError, invalidArgsError } from "../lib/errors.js";
 import { formatJson, formatSql } from "../lib/formatter.js";
 import { Logger } from "../lib/logger.js";
 import { type IntrospectOptions, introspectSchema } from "../lib/schema.js";
@@ -71,10 +71,9 @@ export async function introspect(
 				logger.success("Connection successful!");
 				return;
 			} catch (e: unknown) {
+				if (e instanceof CliError) throw e;
 				const message =
-					e && typeof e === "object" && "message" in e
-						? String(e.message)
-						: String(e);
+					e instanceof Error ? e.message : String(e);
 				throw connectionError(`Connection failed: ${message}`);
 			}
 		}

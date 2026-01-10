@@ -71,6 +71,62 @@ export interface IntrospectOptions {
 	includeSystem?: boolean;
 }
 
+function mapColumn(row: any): Column {
+	return {
+		cid: Number(row.cid),
+		name: String(row.name),
+		type: String(row.type),
+		notnull: Number(row.notnull),
+		dflt_value: row.dflt_value as string | null,
+		pk: Number(row.pk),
+	};
+}
+
+function mapForeignKey(row: any): ForeignKey {
+	return {
+		id: Number(row.id),
+		seq: Number(row.seq),
+		table: String(row.table),
+		from: String(row.from),
+		to: String(row.to),
+		on_update: String(row.on_update),
+		on_delete: String(row.on_delete),
+		match: String(row.match),
+	};
+}
+
+async function getIndexes(client: Client, tableName: string): Promise<Index[]> {
+	const idxListRes = await client.execute(
+		`PRAGMA index_list(${quoteIdent(tableName)})`,
+	);
+	const indexes: Index[] = [];
+
+	for (const idxRow of idxListRes.rows) {
+		const idxName = String(idxRow.name);
+
+		const [idxSqlRes, idxInfoRes] = await Promise.all([
+			client.execute({
+				sql: "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+				args: [idxName],
+			}),
+			client.execute(`PRAGMA index_info(${quoteIdent(idxName)})`),
+		]);
+
+		const idxSql = idxSqlRes.rows[0]?.sql as string | undefined;
+		const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
+
+		indexes.push({
+			name: idxName,
+			unique: Boolean(idxRow.unique),
+			origin: String(idxRow.origin),
+			partial: Boolean(idxRow.partial),
+			columns: idxColumns,
+			sql: idxSql,
+		});
+	}
+	return indexes;
+}
+
 export async function introspectSchema(
 	client: Client,
 	dbName: string,
@@ -80,21 +136,14 @@ export async function introspectSchema(
 	const views: View[] = [];
 	const triggers: Trigger[] = [];
 
-	// Get master table entries
 	const masterResult = await client.execute(
 		"SELECT type, name, sql, tbl_name FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name",
 	);
 
-	const tablesToProcess: string[] = [];
-	const viewsToProcess: { name: string; sql: string }[] = [];
-	const triggersToProcess: { name: string; sql: string }[] = [];
-	const tableSqlMap = new Map<string, string>();
-	const indexSqlMap = new Map<string, string>();
-
 	for (const row of masterResult.rows) {
-		const type = row.type as string;
-		const name = row.name as string;
-		const sql = row.sql as string;
+		const name = String(row.name);
+		const type = String(row.type);
+		const sql = String(row.sql);
 
 		if (type === "index") {
 			indexSqlMap.set(name, sql);
@@ -103,90 +152,29 @@ export async function introspectSchema(
 
 		if (shouldSkip(name, options)) continue;
 
-		if (type === "table") {
-			tablesToProcess.push(name);
-			tableSqlMap.set(name, sql);
-		} else if (type === "view") {
-			viewsToProcess.push({ name, sql });
+		if (type === "view") {
+			views.push({ name, sql });
 		} else if (type === "trigger") {
-			triggersToProcess.push({ name, sql });
+			triggers.push({ name, sql });
+		} else if (type === "table") {
+			// Tables need further introspection
+			const [columnsRes, fkRes] = await Promise.all([
+				client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
+				client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
+			]);
+
+			const columns = columnsRes.rows.map(mapColumn);
+			const foreignKeys = fkRes.rows.map(mapForeignKey);
+			const indexes = await getIndexes(client, name);
+
+			tables.push({
+				name,
+				sql,
+				columns,
+				foreignKeys,
+				indexes,
+			});
 		}
-	}
-
-	// Process tables
-	for (const tableName of tablesToProcess) {
-		// Get table SQL from cache
-		const tableSql = tableSqlMap.get(tableName) || "";
-
-		// Parallelize PRAGMA calls
-		const [columnsRes, fkRes, idxListRes] = await Promise.all([
-			client.execute(`PRAGMA table_info(${quoteIdent(tableName)})`),
-			client.execute(`PRAGMA foreign_key_list(${quoteIdent(tableName)})`),
-			client.execute(`PRAGMA index_list(${quoteIdent(tableName)})`),
-		]);
-
-		const columns: Column[] = columnsRes.rows.map((r) => ({
-			cid: Number(r.cid),
-			name: String(r.name),
-			type: String(r.type),
-			notnull: Number(r.notnull),
-			dflt_value: r.dflt_value as string | null,
-			pk: Number(r.pk),
-		}));
-
-		const foreignKeys: ForeignKey[] = fkRes.rows.map((r) => ({
-			id: Number(r.id),
-			seq: Number(r.seq),
-			table: String(r.table),
-			from: String(r.from),
-			to: String(r.to),
-			on_update: String(r.on_update),
-			on_delete: String(r.on_delete),
-			match: String(r.match),
-		}));
-
-		// Process indexes in parallel
-		const indexes: Index[] = await Promise.all(
-			idxListRes.rows.map(async (idxRow) => {
-				const idxName = String(idxRow.name);
-				const origin = String(idxRow.origin);
-
-				// Use cached SQL
-				const idxSql = indexSqlMap.get(idxName);
-
-				const idxInfoRes = await client.execute(
-					`PRAGMA index_info(${quoteIdent(idxName)})`,
-				);
-				const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
-
-				return {
-					name: idxName,
-					unique: Boolean(idxRow.unique),
-					origin: origin,
-					partial: Boolean(idxRow.partial),
-					columns: idxColumns,
-					sql: idxSql,
-				};
-			}),
-		);
-
-		tables.push({
-			name: tableName,
-			sql: tableSql,
-			columns,
-			foreignKeys,
-			indexes,
-		});
-	}
-
-	// Process views
-	for (const v of viewsToProcess) {
-		views.push(v);
-	}
-
-	// Process triggers
-	for (const t of triggersToProcess) {
-		triggers.push(t);
 	}
 
 	return {
@@ -202,27 +190,25 @@ export async function introspectSchema(
 }
 
 function shouldSkip(name: string, options: IntrospectOptions): boolean {
-	// System tables
-	if (!options.includeSystem) {
-		if (
-			name.startsWith("sqlite_") ||
+	if (
+		!options.includeSystem &&
+		(name.startsWith("sqlite_") ||
 			name.startsWith("_litestream_") ||
-			name.startsWith("_cf_")
-		) {
-			return true;
-		}
+			name.startsWith("_cf_"))
+	) {
+		return true;
 	}
 
-	// Exclude list
 	if (options.excludeTables?.includes(name)) {
 		return true;
 	}
 
-	// Include list (if specified, must be in it)
-	if (options.tables && options.tables.length > 0) {
-		if (!options.tables.includes(name)) {
-			return true;
-		}
+	if (
+		options.tables &&
+		options.tables.length > 0 &&
+		!options.tables.includes(name)
+	) {
+		return true;
 	}
 
 	return false;
