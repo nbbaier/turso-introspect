@@ -145,6 +145,11 @@ export async function introspectSchema(
 		const type = String(row.type);
 		const sql = String(row.sql);
 
+		if (type === "index") {
+			indexSqlMap.set(name, sql);
+			continue;
+		}
+
 		if (shouldSkip(name, options)) continue;
 
 		if (type === "view") {
