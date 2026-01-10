@@ -88,16 +88,24 @@ export async function introspectSchema(
 	const tablesToProcess: string[] = [];
 	const viewsToProcess: { name: string; sql: string }[] = [];
 	const triggersToProcess: { name: string; sql: string }[] = [];
+	const tableSqlMap = new Map<string, string>();
+	const indexSqlMap = new Map<string, string>();
 
 	for (const row of masterResult.rows) {
 		const type = row.type as string;
 		const name = row.name as string;
 		const sql = row.sql as string;
 
+		if (type === "index") {
+			indexSqlMap.set(name, sql);
+			continue;
+		}
+
 		if (shouldSkip(name, options)) continue;
 
 		if (type === "table") {
 			tablesToProcess.push(name);
+			tableSqlMap.set(name, sql);
 		} else if (type === "view") {
 			viewsToProcess.push({ name, sql });
 		} else if (type === "trigger") {
@@ -107,17 +115,16 @@ export async function introspectSchema(
 
 	// Process tables
 	for (const tableName of tablesToProcess) {
-		// Get table SQL
-		const sqlRes = await client.execute({
-			sql: "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
-			args: [tableName],
-		});
-		const tableSql = (sqlRes.rows[0]?.sql as string) || "";
+		// Get table SQL from cache
+		const tableSql = tableSqlMap.get(tableName) || "";
 
-		// Get columns
-		const columnsRes = await client.execute(
-			`PRAGMA table_info(${quoteIdent(tableName)})`,
-		);
+		// Parallelize PRAGMA calls
+		const [columnsRes, fkRes, idxListRes] = await Promise.all([
+			client.execute(`PRAGMA table_info(${quoteIdent(tableName)})`),
+			client.execute(`PRAGMA foreign_key_list(${quoteIdent(tableName)})`),
+			client.execute(`PRAGMA index_list(${quoteIdent(tableName)})`),
+		]);
+
 		const columns: Column[] = columnsRes.rows.map((r) => ({
 			cid: Number(r.cid),
 			name: String(r.name),
@@ -127,10 +134,6 @@ export async function introspectSchema(
 			pk: Number(r.pk),
 		}));
 
-		// Get foreign keys
-		const fkRes = await client.execute(
-			`PRAGMA foreign_key_list(${quoteIdent(tableName)})`,
-		);
 		const foreignKeys: ForeignKey[] = fkRes.rows.map((r) => ({
 			id: Number(r.id),
 			seq: Number(r.seq),
@@ -142,47 +145,30 @@ export async function introspectSchema(
 			match: String(r.match),
 		}));
 
-		// Get indexes
-		const idxListRes = await client.execute(
-			`PRAGMA index_list(${quoteIdent(tableName)})`,
+		// Process indexes in parallel
+		const indexes: Index[] = await Promise.all(
+			idxListRes.rows.map(async (idxRow) => {
+				const idxName = String(idxRow.name);
+				const origin = String(idxRow.origin);
+
+				// Use cached SQL
+				const idxSql = indexSqlMap.get(idxName);
+
+				const idxInfoRes = await client.execute(
+					`PRAGMA index_info(${quoteIdent(idxName)})`,
+				);
+				const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
+
+				return {
+					name: idxName,
+					unique: Boolean(idxRow.unique),
+					origin: origin,
+					partial: Boolean(idxRow.partial),
+					columns: idxColumns,
+					sql: idxSql,
+				};
+			}),
 		);
-		const indexes: Index[] = [];
-
-		for (const idxRow of idxListRes.rows) {
-			const idxName = String(idxRow.name);
-			const origin = String(idxRow.origin);
-
-			// Skip internal indexes (pk, unique constraints defined in table) usually handled by CREATE TABLE
-			// But we might want them if we are reconstructing.
-			// However, usually explicitly created indexes (origin 'c') are what we want to dump separately?
-			// Or maybe we want all of them for analysis.
-			// For SQL generation, we usually only want those NOT created by constraints.
-
-			// sqlite_master also has index definitions.
-			// If we use the SQL from sqlite_master for the table, it includes inline constraints.
-			// We should check if the index exists in sqlite_master with SQL.
-
-			const idxSqlRes = await client.execute({
-				sql: "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
-				args: [idxName],
-			});
-
-			const idxSql = idxSqlRes.rows[0]?.sql as string | undefined;
-
-			const idxInfoRes = await client.execute(
-				`PRAGMA index_info(${quoteIdent(idxName)})`,
-			);
-			const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
-
-			indexes.push({
-				name: idxName,
-				unique: Boolean(idxRow.unique),
-				origin: origin,
-				partial: Boolean(idxRow.partial),
-				columns: idxColumns,
-				sql: idxSql,
-			});
-		}
 
 		tables.push({
 			name: tableName,
@@ -207,7 +193,7 @@ export async function introspectSchema(
 		metadata: {
 			database: dbName,
 			timestamp: new Date().toISOString(),
-			version: "1.0.0", // CLI version, maybe import from package.json
+			version: "1.0.0",
 		},
 		tables,
 		views,
