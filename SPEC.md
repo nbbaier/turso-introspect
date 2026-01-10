@@ -48,10 +48,11 @@ The `--token` flag takes precedence over the environment variable.
 
 ## Database Identification
 
-Databases can be specified in two ways:
+Databases can be specified in three ways:
 
 1. **Full URL**: `libsql://mydb-myorg.turso.io`
 2. **Database name**: Requires `--org` flag to specify the organization
+3. **Local SQLite file path**: `.db`/`.sqlite` file on disk
 
 ```bash
 # Full URL - no org needed
@@ -59,6 +60,9 @@ turso-introspect libsql://mydb-myorg.turso.io
 
 # Database name - org required
 turso-introspect mydb --org myorg
+
+# Local SQLite file
+turso-introspect ./dev.db
 ```
 
 ## Output Formats
@@ -161,6 +165,9 @@ turso-introspect diff libsql://db1.turso.io libsql://db2.turso.io
 # Compare database against local file
 turso-introspect diff libsql://production.turso.io ./local-schema.sql
 
+# Compare local SQLite database against remote
+turso-introspect diff ./dev.db libsql://production.turso.io
+
 # Output as migration SQL
 turso-introspect diff db1 db2 --org myorg --diff-format migration
 
@@ -171,11 +178,15 @@ turso-introspect diff db1 db2 --org myorg --diff-format diff
 ## Connection Handling
 
 -  Retries failed connections 3 times with exponential backoff
+-  Configure retry behavior with `--retries` and `--retry-delay`
 -  Use `--check` flag to validate connectivity and permissions without producing output
 
 ```bash
 # Verify connection only
 turso-introspect mydb --org myorg --check
+
+# Custom retry configuration
+turso-introspect mydb --org myorg --retries 5 --retry-delay 1000
 ```
 
 ## Verbosity
@@ -219,6 +230,8 @@ Options:
   --include-system      Include SQLite/libsql system tables
   --normalize-defaults  Normalize common DEFAULT expressions
   --check               Validate connection without producing output
+  --retries <number>    Retry failed connections N times (default: 3)
+  --retry-delay <ms>    Base retry delay in milliseconds (default: 500)
   -q, --quiet           Suppress warnings and informational output
   -v, --verbose         Show detailed progress information
   -h, --help            Show help
@@ -229,6 +242,8 @@ Subcommands:
     --diff-format <f>   Output format: diff (default) or migration
     --org <name>        Organization (when using db names)
     --token <token>     Authentication token
+    --retries <number>  Retry failed connections N times (default: 3)
+    --retry-delay <ms>  Base retry delay in milliseconds (default: 500)
 ```
 
 ## Environment Variables

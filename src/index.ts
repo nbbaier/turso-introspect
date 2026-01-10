@@ -11,7 +11,10 @@ program
 	.name("turso-introspect")
 	.description("Introspect the database schema of a Turso/libsql database")
 	.version(pkg.version)
-	.argument("[database]", "Database URL (libsql://...) or name")
+	.argument(
+		"[database]",
+		"Database URL (libsql://...), name, or local SQLite file path",
+	)
 	.option("--org <name>", "Organization name (required when using db name)")
 	.option(
 		"--token <token>",
@@ -31,6 +34,18 @@ program
 	.option("--include-system", "Include SQLite/libsql system tables")
 	.option("--normalize-defaults", "Normalize common DEFAULT expressions")
 	.option("--check", "Validate connection without producing output")
+	.option(
+		"--retries <number>",
+		"Retry failed connections N times",
+		(value) => Number.parseInt(value, 10),
+		3,
+	)
+	.option(
+		"--retry-delay <ms>",
+		"Base retry delay in milliseconds",
+		(value) => Number.parseInt(value, 10),
+		500,
+	)
 	.option("-q, --quiet", "Suppress warnings and informational output")
 	.option("-v, --verbose", "Show detailed progress information")
 	.action(async (database, options) => {
@@ -59,6 +74,18 @@ program
 	)
 	.option("--org <name>", "Organization (when using db names)")
 	.option("--token <token>", "Authentication token")
+	.option(
+		"--retries <number>",
+		"Retry failed connections N times",
+		(value) => Number.parseInt(value, 10),
+		3,
+	)
+	.option(
+		"--retry-delay <ms>",
+		"Base retry delay in milliseconds",
+		(value) => Number.parseInt(value, 10),
+		500,
+	)
 	.option("-q, --quiet", "Suppress warnings and informational output")
 	.option("-v, --verbose", "Show detailed progress information")
 	.action(async (db1, db2, options) => {

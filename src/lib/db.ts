@@ -1,19 +1,25 @@
 import fs from "node:fs/promises";
 import { homedir, platform } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
 	type Client,
 	createClient as createLibsqlClient,
 } from "@libsql/client";
+import { notFoundError } from "./errors.js";
+import { withRetry } from "./retry.js";
 
 export interface ConnectionConfig {
 	database: string;
 	org?: string;
 	token?: string;
+	retries?: number;
+	retryDelayMs?: number;
 }
 
 export function resolveDatabaseUrl(database: string, org?: string): string {
 	if (
+		database.startsWith("file:") ||
 		database.startsWith("libsql://") ||
 		database.startsWith("http://") ||
 		database.startsWith("https://")
@@ -28,6 +34,36 @@ export function resolveDatabaseUrl(database: string, org?: string): string {
 	}
 
 	return `libsql://${database}-${org}.turso.io`;
+}
+
+function looksLikeLocalDatabasePath(input: string): boolean {
+	if (input.startsWith("file:")) return false;
+	if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)) return false;
+	if (input === "~" || input.startsWith("~/")) return true;
+	if (input.startsWith("./") || input.startsWith("../")) return true;
+	if (input.startsWith("/") || input.includes("/") || input.includes("\\")) return true;
+	if (/^[a-zA-Z]:[\\/]/.test(input)) return true;
+	return /\.(db|sqlite|sqlite3|db3)$/i.test(input);
+}
+
+function expandHome(input: string): string {
+	if (input === "~") return homedir();
+	if (input.startsWith("~/")) return join(homedir(), input.slice(2));
+	return input;
+}
+
+async function ensureLocalDbFileExists(path: string): Promise<void> {
+	try {
+		const stat = await fs.stat(path);
+		if (!stat.isFile()) {
+			throw notFoundError(`"${path}" is not a file.`);
+		}
+	} catch (error: unknown) {
+		if (error && typeof error === "object" && "name" in error && error.name === "CliError") {
+			throw error;
+		}
+		throw notFoundError(`Local database file not found: "${path}"`);
+	}
 }
 
 function getTursoSettingsPath(): string {
@@ -114,11 +150,53 @@ export async function getAuthToken(
 export async function createDbClient(
 	config: ConnectionConfig,
 ): Promise<Client> {
-	const url = resolveDatabaseUrl(config.database, config.org);
-	const authToken = await getAuthToken(config.database, config.org, config.token);
+	const retryOptions = {
+		retries: config.retries ?? 3,
+		baseDelayMs: config.retryDelayMs ?? 500,
+	};
 
-	return createLibsqlClient({
+	let url: string;
+	let authToken: string | undefined;
+
+	if (looksLikeLocalDatabasePath(config.database)) {
+		const expanded = expandHome(config.database);
+		const fullPath = isAbsolute(expanded) ? expanded : resolve(expanded);
+		await ensureLocalDbFileExists(fullPath);
+		url = pathToFileURL(fullPath).toString();
+	} else {
+		url = resolveDatabaseUrl(config.database, config.org);
+	}
+
+	if (!url.startsWith("file:")) {
+		authToken = await getAuthToken(config.database, config.org, config.token);
+	}
+
+	const client = createLibsqlClient({
 		url,
 		authToken,
+	});
+
+	return new Proxy(client, {
+		get(target, prop, receiver) {
+			if (prop === "execute") {
+				return (...args: unknown[]) =>
+					withRetry(
+						() => Reflect.apply((target as any).execute, target, args),
+						retryOptions,
+					);
+			}
+			if (prop === "batch") {
+				return (...args: unknown[]) =>
+					withRetry(
+						() => Reflect.apply((target as any).batch, target, args),
+						retryOptions,
+					);
+			}
+			const value = Reflect.get(target, prop, receiver);
+			if (typeof value === "function") {
+				return value.bind(target);
+			}
+			return value;
+		},
 	});
 }

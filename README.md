@@ -21,6 +21,10 @@ turso-introspect libsql://mydb-myorg.turso.io
 # Using database name (requires --org)
 turso-introspect mydb --org myorg
 
+# Using a local SQLite database file
+turso-introspect ./dev.db
+turso-introspect ~/databases/myapp.sqlite
+
 # Output to specific file
 turso-introspect mydb --org myorg -o ./schemas/mydb.sql
 
@@ -70,6 +74,7 @@ Databases can be specified in two ways:
 
 1. **Full URL**: `libsql://mydb-myorg.turso.io`
 2. **Database name**: Requires `--org` flag to specify the organization
+3. **Local SQLite file path**: `.db`/`.sqlite` file on disk
 
 ## Output Formats
 
@@ -108,6 +113,9 @@ turso-introspect diff libsql://db1.turso.io libsql://db2.turso.io
 # Compare database against local file
 turso-introspect diff libsql://production.turso.io ./local-schema.sql
 
+# Compare local SQLite database against remote
+turso-introspect diff ./dev.db libsql://production.turso.io
+
 # Output as migration SQL
 turso-introspect diff db1 db2 --org myorg --diff-format migration
 ```
@@ -131,6 +139,8 @@ Options:
   --include-system      Include SQLite/libsql system tables
   --normalize-defaults  Normalize common DEFAULT expressions
   --check               Validate connection without producing output
+  --retries <number>    Retry failed connections N times (default: 3)
+  --retry-delay <ms>    Base retry delay in milliseconds (default: 500)
   -q, --quiet           Suppress warnings and informational output
   -v, --verbose         Show detailed progress information
   -h, --help            Show help
@@ -141,6 +151,8 @@ Subcommands:
     --diff-format <f>   Output format: diff (default) or migration
     --org <name>        Organization (when using db names)
     --token <token>     Authentication token
+    --retries <number>  Retry failed connections N times (default: 3)
+    --retry-delay <ms>  Base retry delay in milliseconds (default: 500)
 ```
 
 ## Development

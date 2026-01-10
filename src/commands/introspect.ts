@@ -16,6 +16,8 @@ interface CommandOptions {
 	includeSystem?: boolean;
 	normalizeDefaults?: boolean;
 	check?: boolean;
+	retries?: number;
+	retryDelay?: number;
 	quiet?: boolean;
 	verbose?: boolean;
 }
@@ -37,10 +39,27 @@ export async function introspect(
 		);
 	}
 
+	if (
+		options.retries !== undefined &&
+		(!Number.isFinite(options.retries) || options.retries < 0)
+	) {
+		throw invalidArgsError(`Invalid --retries: "${options.retries}". Use a non-negative integer.`);
+	}
+	if (
+		options.retryDelay !== undefined &&
+		(!Number.isFinite(options.retryDelay) || options.retryDelay < 0)
+	) {
+		throw invalidArgsError(
+			`Invalid --retry-delay: "${options.retryDelay}". Use a non-negative integer (milliseconds).`,
+		);
+	}
+
 	const client = await createDbClient({
 		database,
 		org: options.org,
 		token: options.token,
+		retries: options.retries,
+		retryDelayMs: options.retryDelay,
 	});
 
 	try {

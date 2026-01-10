@@ -11,8 +11,26 @@ interface DiffOptions {
 	diffFormat?: string;
 	org?: string;
 	token?: string;
+	retries?: number;
+	retryDelay?: number;
 	quiet?: boolean;
 	verbose?: boolean;
+}
+
+async function isSqliteDatabaseFile(path: string): Promise<boolean> {
+	try {
+		const file = await fs.open(path, "r");
+		try {
+			const header = Buffer.alloc(16);
+			const { bytesRead } = await file.read(header, 0, header.length, 0);
+			if (bytesRead < 16) return false;
+			return header.toString("utf-8") === "SQLite format 3\u0000";
+		} finally {
+			await file.close();
+		}
+	} catch {
+		return false;
+	}
 }
 
 async function getSchemaSql(
@@ -29,8 +47,12 @@ async function getSchemaSql(
 				);
 			}
 			if (stats.isFile()) {
-				logger.verbose(`Reading schema from file: ${source}`);
-				return await fs.readFile(source, "utf-8");
+				if (await isSqliteDatabaseFile(source)) {
+					logger.verbose(`Introspecting local SQLite database: ${source}`);
+				} else {
+					logger.verbose(`Reading schema from file: ${source}`);
+					return await fs.readFile(source, "utf-8");
+				}
 			}
 		} catch (e: unknown) {
 			if (e && typeof e === "object" && "name" in e && e.name === "CliError") throw e;
@@ -42,6 +64,8 @@ async function getSchemaSql(
 		database: source,
 		org: options.org,
 		token: options.token,
+		retries: options.retries,
+		retryDelayMs: options.retryDelay,
 	});
 
 	try {
@@ -59,6 +83,21 @@ export async function diff(db1: string, db2: string, options: DiffOptions) {
 	if (diffFormat !== "diff" && diffFormat !== "migration") {
 		throw invalidArgsError(
 			`Invalid --diff-format: "${diffFormat}". Use "diff" or "migration".`,
+		);
+	}
+
+	if (
+		options.retries !== undefined &&
+		(!Number.isFinite(options.retries) || options.retries < 0)
+	) {
+		throw invalidArgsError(`Invalid --retries: "${options.retries}". Use a non-negative integer.`);
+	}
+	if (
+		options.retryDelay !== undefined &&
+		(!Number.isFinite(options.retryDelay) || options.retryDelay < 0)
+	) {
+		throw invalidArgsError(
+			`Invalid --retry-delay: "${options.retryDelay}". Use a non-negative integer (milliseconds).`,
 		);
 	}
 
