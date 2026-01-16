@@ -139,8 +139,8 @@ export async function introspectSchema(
 		"SELECT type, name, sql, tbl_name FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name",
 	);
 
-	// First pass: collect indexes and separate types
-	const tableRows: any[] = [];
+	// First pass: Collect indexes and categorize items
+	const tableRows: { name: string; sql: string }[] = [];
 
 	for (const row of masterResult.rows) {
 		const name = String(row.name);
@@ -149,8 +149,20 @@ export async function introspectSchema(
 
 		if (type === "index") {
 			indexSqlMap.set(name, sql);
-			continue;
+		} else if (type === "table") {
+			if (!shouldSkip(name, options)) {
+				tablesToProcess.push({ name, sql });
+			}
+		} else if (type === "view") {
+			if (!shouldSkip(name, options)) {
+				views.push({ name, sql });
+			}
+		} else if (type === "trigger") {
+			if (!shouldSkip(name, options)) {
+				triggers.push({ name, sql });
+			}
 		}
+	}
 
 		if (shouldSkip(name, options)) continue;
 
