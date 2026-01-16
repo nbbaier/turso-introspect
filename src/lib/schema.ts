@@ -95,7 +95,11 @@ function mapForeignKey(row: any): ForeignKey {
 	};
 }
 
-async function getIndexes(client: Client, tableName: string): Promise<Index[]> {
+async function getIndexes(
+	client: Client,
+	tableName: string,
+	indexSqlMap: Map<string, string>,
+): Promise<Index[]> {
 	const idxListRes = await client.execute(
 		`PRAGMA index_list(${quoteIdent(tableName)})`,
 	);
@@ -104,15 +108,11 @@ async function getIndexes(client: Client, tableName: string): Promise<Index[]> {
 	for (const idxRow of idxListRes.rows) {
 		const idxName = String(idxRow.name);
 
-		const [idxSqlRes, idxInfoRes] = await Promise.all([
-			client.execute({
-				sql: "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
-				args: [idxName],
-			}),
-			client.execute(`PRAGMA index_info(${quoteIdent(idxName)})`),
-		]);
+		const idxInfoRes = await client.execute(
+			`PRAGMA index_info(${quoteIdent(idxName)})`,
+		);
 
-		const idxSql = idxSqlRes.rows[0]?.sql as string | undefined;
+		const idxSql = indexSqlMap.get(idxName);
 		const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
 
 		indexes.push({
@@ -135,10 +135,13 @@ export async function introspectSchema(
 	const tables: Table[] = [];
 	const views: View[] = [];
 	const triggers: Trigger[] = [];
+	const indexSqlMap = new Map<string, string>();
 
 	const masterResult = await client.execute(
 		"SELECT type, name, sql, tbl_name FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name",
 	);
+
+	const promises: Promise<void>[] = [];
 
 	for (const row of masterResult.rows) {
 		const name = String(row.name);
@@ -157,25 +160,33 @@ export async function introspectSchema(
 		} else if (type === "trigger") {
 			triggers.push({ name, sql });
 		} else if (type === "table") {
-			// Tables need further introspection
-			const [columnsRes, fkRes] = await Promise.all([
-				client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
-				client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
-			]);
+			promises.push(
+				(async () => {
+					// Tables need further introspection
+					const [columnsRes, fkRes] = await Promise.all([
+						client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
+						client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
+					]);
 
-			const columns = columnsRes.rows.map(mapColumn);
-			const foreignKeys = fkRes.rows.map(mapForeignKey);
-			const indexes = await getIndexes(client, name);
+					const columns = columnsRes.rows.map(mapColumn);
+					const foreignKeys = fkRes.rows.map(mapForeignKey);
+					const indexes = await getIndexes(client, name, indexSqlMap);
 
-			tables.push({
-				name,
-				sql,
-				columns,
-				foreignKeys,
-				indexes,
-			});
+					tables.push({
+						name,
+						sql,
+						columns,
+						foreignKeys,
+						indexes,
+					});
+				})(),
+			);
 		}
 	}
+
+	await Promise.all(promises);
+
+	tables.sort((a, b) => a.name.localeCompare(b.name));
 
 	return {
 		metadata: {
