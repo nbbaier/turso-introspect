@@ -103,7 +103,6 @@ async function getIndexes(
 	const idxListRes = await client.execute(
 		`PRAGMA index_list(${quoteIdent(tableName)})`,
 	);
-	const indexes: Index[] = [];
 
 	const promises = idxListRes.rows.map(async (idxRow) => {
 		const idxName = String(idxRow.name);
@@ -176,8 +175,9 @@ export async function introspectSchema(
 		}
 	}
 
-	// Process tables concurrently
+	// Process tables in parallel
 	const tablePromises = tableRows.map(async ({ name, sql }) => {
+		// Tables need further introspection
 		const [columnsRes, fkRes] = await Promise.all([
 			client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
 			client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
@@ -196,7 +196,10 @@ export async function introspectSchema(
 		};
 	});
 
-	tables.push(...(await Promise.all(tablePromises)));
+	const tables = await Promise.all(tablePromises);
+
+	// Sort tables by name to ensure deterministic output
+	tables.sort((a, b) => a.name.localeCompare(b.name));
 
 	return {
 		metadata: {
