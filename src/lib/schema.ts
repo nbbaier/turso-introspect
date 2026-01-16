@@ -95,35 +95,35 @@ function mapForeignKey(row: any): ForeignKey {
 	};
 }
 
-async function getIndexes(client: Client, tableName: string): Promise<Index[]> {
+async function getIndexes(
+	client: Client,
+	tableName: string,
+	indexSqlMap: Map<string, string>,
+): Promise<Index[]> {
 	const idxListRes = await client.execute(
 		`PRAGMA index_list(${quoteIdent(tableName)})`,
 	);
-	const indexes: Index[] = [];
 
-	for (const idxRow of idxListRes.rows) {
-		const idxName = String(idxRow.name);
+	const indexes = await Promise.all(
+		idxListRes.rows.map(async (idxRow) => {
+			const idxName = String(idxRow.name);
+			const idxSql = indexSqlMap.get(idxName);
+			const idxInfoRes = await client.execute(
+				`PRAGMA index_info(${quoteIdent(idxName)})`,
+			);
+			const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
 
-		const [idxSqlRes, idxInfoRes] = await Promise.all([
-			client.execute({
-				sql: "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
-				args: [idxName],
-			}),
-			client.execute(`PRAGMA index_info(${quoteIdent(idxName)})`),
-		]);
+			return {
+				name: idxName,
+				unique: Boolean(idxRow.unique),
+				origin: String(idxRow.origin),
+				partial: Boolean(idxRow.partial),
+				columns: idxColumns,
+				sql: idxSql,
+			};
+		}),
+	);
 
-		const idxSql = idxSqlRes.rows[0]?.sql as string | undefined;
-		const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
-
-		indexes.push({
-			name: idxName,
-			unique: Boolean(idxRow.unique),
-			origin: String(idxRow.origin),
-			partial: Boolean(idxRow.partial),
-			columns: idxColumns,
-			sql: idxSql,
-		});
-	}
 	return indexes;
 }
 
@@ -132,9 +132,10 @@ export async function introspectSchema(
 	dbName: string,
 	options: IntrospectOptions = {},
 ): Promise<Schema> {
-	const tables: Table[] = [];
 	const views: View[] = [];
 	const triggers: Trigger[] = [];
+	const indexSqlMap = new Map<string, string>();
+	const tablesToProcess: { name: string; sql: string }[] = [];
 
 	const masterResult = await client.execute(
 		"SELECT type, name, sql, tbl_name FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name",
@@ -147,17 +148,24 @@ export async function introspectSchema(
 
 		if (type === "index") {
 			indexSqlMap.set(name, sql);
-			continue;
-		}
-
-		if (shouldSkip(name, options)) continue;
-
-		if (type === "view") {
-			views.push({ name, sql });
-		} else if (type === "trigger") {
-			triggers.push({ name, sql });
 		} else if (type === "table") {
-			// Tables need further introspection
+			if (!shouldSkip(name, options)) {
+				tablesToProcess.push({ name, sql });
+			}
+		} else if (type === "view") {
+			if (!shouldSkip(name, options)) {
+				views.push({ name, sql });
+			}
+		} else if (type === "trigger") {
+			if (!shouldSkip(name, options)) {
+				triggers.push({ name, sql });
+			}
+		}
+	}
+
+	// Process tables in parallel and use cached index SQL to avoid N+1 queries
+	const tables = await Promise.all(
+		tablesToProcess.map(async ({ name, sql }) => {
 			const [columnsRes, fkRes] = await Promise.all([
 				client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
 				client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
@@ -165,17 +173,17 @@ export async function introspectSchema(
 
 			const columns = columnsRes.rows.map(mapColumn);
 			const foreignKeys = fkRes.rows.map(mapForeignKey);
-			const indexes = await getIndexes(client, name);
+			const indexes = await getIndexes(client, name, indexSqlMap);
 
-			tables.push({
+			return {
 				name,
 				sql,
 				columns,
 				foreignKeys,
 				indexes,
-			});
-		}
-	}
+			};
+		}),
+	);
 
 	return {
 		metadata: {
