@@ -132,7 +132,6 @@ export async function introspectSchema(
 	dbName: string,
 	options: IntrospectOptions = {},
 ): Promise<Schema> {
-	const tables: Table[] = [];
 	const views: View[] = [];
 	const triggers: Trigger[] = [];
 	const indexSqlMap = new Map<string, string>();
@@ -151,8 +150,20 @@ export async function introspectSchema(
 
 		if (type === "index") {
 			indexSqlMap.set(name, sql);
-			continue;
+		} else if (type === "table") {
+			if (!shouldSkip(name, options)) {
+				tablesToProcess.push({ name, sql });
+			}
+		} else if (type === "view") {
+			if (!shouldSkip(name, options)) {
+				views.push({ name, sql });
+			}
+		} else if (type === "trigger") {
+			if (!shouldSkip(name, options)) {
+				triggers.push({ name, sql });
+			}
 		}
+	}
 
 		if (shouldSkip(name, options)) continue;
 
