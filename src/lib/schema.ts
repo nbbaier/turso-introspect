@@ -103,10 +103,12 @@ async function getIndexes(
 	const idxListRes = await client.execute(
 		`PRAGMA index_list(${quoteIdent(tableName)})`,
 	);
-	const indexes: Index[] = [];
 
-	for (const idxRow of idxListRes.rows) {
+	const promises = idxListRes.rows.map(async (idxRow) => {
 		const idxName = String(idxRow.name);
+		const idxInfoRes = await client.execute(
+			`PRAGMA index_info(${quoteIdent(idxName)})`,
+		);
 
 		const idxInfoRes = await client.execute(
 			`PRAGMA index_info(${quoteIdent(idxName)})`,
@@ -115,16 +117,17 @@ async function getIndexes(
 		const idxSql = indexSqlMap.get(idxName);
 		const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
 
-		indexes.push({
+		return {
 			name: idxName,
 			unique: Boolean(idxRow.unique),
 			origin: String(idxRow.origin),
 			partial: Boolean(idxRow.partial),
 			columns: idxColumns,
 			sql: idxSql,
-		});
-	}
-	return indexes;
+		};
+	});
+
+	return Promise.all(promises);
 }
 
 export async function introspectSchema(
@@ -132,7 +135,6 @@ export async function introspectSchema(
 	dbName: string,
 	options: IntrospectOptions = {},
 ): Promise<Schema> {
-	const tables: Table[] = [];
 	const views: View[] = [];
 	const triggers: Trigger[] = [];
 	const indexSqlMap = new Map<string, string>();
@@ -150,8 +152,20 @@ export async function introspectSchema(
 
 		if (type === "index") {
 			indexSqlMap.set(name, sql);
-			continue;
+		} else if (type === "table") {
+			if (!shouldSkip(name, options)) {
+				tablesToProcess.push({ name, sql });
+			}
+		} else if (type === "view") {
+			if (!shouldSkip(name, options)) {
+				views.push({ name, sql });
+			}
+		} else if (type === "trigger") {
+			if (!shouldSkip(name, options)) {
+				triggers.push({ name, sql });
+			}
 		}
+	}
 
 		if (shouldSkip(name, options)) continue;
 
