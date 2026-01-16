@@ -72,8 +72,7 @@ export async function introspect(
 				return;
 			} catch (e: unknown) {
 				if (e instanceof CliError) throw e;
-				const message =
-					e instanceof Error ? e.message : String(e);
+				const message = e instanceof Error ? e.message : String(e);
 				throw connectionError(`Connection failed: ${message}`);
 			}
 		}

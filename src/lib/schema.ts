@@ -110,6 +110,10 @@ async function getIndexes(
 			`PRAGMA index_info(${quoteIdent(idxName)})`,
 		);
 
+		const idxInfoRes = await client.execute(
+			`PRAGMA index_info(${quoteIdent(idxName)})`,
+		);
+
 		const idxSql = indexSqlMap.get(idxName);
 		const idxColumns = idxInfoRes.rows.map((r) => String(r.name));
 
@@ -139,8 +143,7 @@ export async function introspectSchema(
 		"SELECT type, name, sql, tbl_name FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name",
 	);
 
-	// First pass: Collect indexes and categorize items
-	const tableRows: { name: string; sql: string }[] = [];
+	const promises: Promise<void>[] = [];
 
 	for (const row of masterResult.rows) {
 		const name = String(row.name);
@@ -171,34 +174,32 @@ export async function introspectSchema(
 		} else if (type === "trigger") {
 			triggers.push({ name, sql });
 		} else if (type === "table") {
-			tableRows.push({ name, sql });
+			promises.push(
+				(async () => {
+					// Tables need further introspection
+					const [columnsRes, fkRes] = await Promise.all([
+						client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
+						client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
+					]);
+
+					const columns = columnsRes.rows.map(mapColumn);
+					const foreignKeys = fkRes.rows.map(mapForeignKey);
+					const indexes = await getIndexes(client, name, indexSqlMap);
+
+					tables.push({
+						name,
+						sql,
+						columns,
+						foreignKeys,
+						indexes,
+					});
+				})(),
+			);
 		}
 	}
 
-	// Process tables in parallel
-	const tablePromises = tableRows.map(async ({ name, sql }) => {
-		// Tables need further introspection
-		const [columnsRes, fkRes] = await Promise.all([
-			client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
-			client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
-		]);
+	await Promise.all(promises);
 
-		const columns = columnsRes.rows.map(mapColumn);
-		const foreignKeys = fkRes.rows.map(mapForeignKey);
-		const indexes = await getIndexes(client, name, indexSqlMap);
-
-		return {
-			name,
-			sql,
-			columns,
-			foreignKeys,
-			indexes,
-		};
-	});
-
-	const tables = await Promise.all(tablePromises);
-
-	// Sort tables by name to ensure deterministic output
 	tables.sort((a, b) => a.name.localeCompare(b.name));
 
 	return {
