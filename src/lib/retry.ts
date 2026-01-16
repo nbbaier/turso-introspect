@@ -16,7 +16,7 @@ export interface RetryOptions {
 export class RetryError extends Error {
 	constructor(
 		message: string,
-		public cause: unknown,
+		public override cause: unknown,
 	) {
 		super(message);
 		this.name = "RetryError";

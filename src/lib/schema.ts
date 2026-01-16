@@ -71,7 +71,9 @@ export interface IntrospectOptions {
 	includeSystem?: boolean;
 }
 
-function mapColumn(row: any): Column {
+type SqliteRow = Record<string, unknown>;
+
+function mapColumn(row: SqliteRow): Column {
 	return {
 		cid: Number(row.cid),
 		name: String(row.name),
@@ -82,7 +84,7 @@ function mapColumn(row: any): Column {
 	};
 }
 
-function mapForeignKey(row: any): ForeignKey {
+function mapForeignKey(row: SqliteRow): ForeignKey {
 	return {
 		id: Number(row.id),
 		seq: Number(row.seq),
@@ -106,7 +108,7 @@ async function getIndexes(
 
 	const promises = idxListRes.rows.map(async (idxRow) => {
 		const idxName = String(idxRow.name);
-		const idxInfoRes = await client.execute(
+		const _idxInfoRes = await client.execute(
 			`PRAGMA index_info(${quoteIdent(idxName)})`,
 		);
 
@@ -135,6 +137,7 @@ export async function introspectSchema(
 	dbName: string,
 	options: IntrospectOptions = {},
 ): Promise<Schema> {
+	const tables: Table[] = [];
 	const views: View[] = [];
 	const triggers: Trigger[] = [];
 	const indexSqlMap = new Map<string, string>();
@@ -158,15 +161,22 @@ export async function introspectSchema(
 		if (type === "index") {
 			continue;
 		}
-	}
 
-		if (shouldSkip(name, options)) continue;
+		if (shouldSkip(name, options)) {
+			continue;
+		}
 
 		if (type === "view") {
 			views.push({ name, sql });
-		} else if (type === "trigger") {
+			continue;
+		}
+
+		if (type === "trigger") {
 			triggers.push({ name, sql });
-		} else if (type === "table") {
+			continue;
+		}
+
+		if (type === "table") {
 			// Tables need further introspection
 			const [columnsRes, fkRes] = await Promise.all([
 				client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
@@ -186,8 +196,6 @@ export async function introspectSchema(
 			});
 		}
 	}
-
-	await Promise.all(promises);
 
 	tables.sort((a, b) => a.name.localeCompare(b.name));
 
