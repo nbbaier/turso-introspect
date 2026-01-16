@@ -143,7 +143,12 @@ export async function introspectSchema(
 		"SELECT type, name, sql, tbl_name FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name",
 	);
 
-	const promises: Promise<void>[] = [];
+	// First pass: collect all index SQL definitions
+	for (const row of masterResult.rows) {
+		if (row.type === "index") {
+			indexSqlMap.set(String(row.name), String(row.sql));
+		}
+	}
 
 	for (const row of masterResult.rows) {
 		const name = String(row.name);
@@ -151,19 +156,7 @@ export async function introspectSchema(
 		const sql = String(row.sql);
 
 		if (type === "index") {
-			indexSqlMap.set(name, sql);
-		} else if (type === "table") {
-			if (!shouldSkip(name, options)) {
-				tablesToProcess.push({ name, sql });
-			}
-		} else if (type === "view") {
-			if (!shouldSkip(name, options)) {
-				views.push({ name, sql });
-			}
-		} else if (type === "trigger") {
-			if (!shouldSkip(name, options)) {
-				triggers.push({ name, sql });
-			}
+			continue;
 		}
 	}
 
@@ -174,27 +167,23 @@ export async function introspectSchema(
 		} else if (type === "trigger") {
 			triggers.push({ name, sql });
 		} else if (type === "table") {
-			promises.push(
-				(async () => {
-					// Tables need further introspection
-					const [columnsRes, fkRes] = await Promise.all([
-						client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
-						client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
-					]);
+			// Tables need further introspection
+			const [columnsRes, fkRes] = await Promise.all([
+				client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
+				client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
+			]);
 
-					const columns = columnsRes.rows.map(mapColumn);
-					const foreignKeys = fkRes.rows.map(mapForeignKey);
-					const indexes = await getIndexes(client, name, indexSqlMap);
+			const columns = columnsRes.rows.map(mapColumn);
+			const foreignKeys = fkRes.rows.map(mapForeignKey);
+			const indexes = await getIndexes(client, name, indexSqlMap);
 
-					tables.push({
-						name,
-						sql,
-						columns,
-						foreignKeys,
-						indexes,
-					});
-				})(),
-			);
+			tables.push({
+				name,
+				sql,
+				columns,
+				foreignKeys,
+				indexes,
+			});
 		}
 	}
 
