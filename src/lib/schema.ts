@@ -108,10 +108,6 @@ async function getIndexes(
 
 	const promises = idxListRes.rows.map(async (idxRow) => {
 		const idxName = String(idxRow.name);
-		const _idxInfoRes = await client.execute(
-			`PRAGMA index_info(${quoteIdent(idxName)})`,
-		);
-
 		const idxInfoRes = await client.execute(
 			`PRAGMA index_info(${quoteIdent(idxName)})`,
 		);
@@ -129,7 +125,9 @@ async function getIndexes(
 		};
 	});
 
-	return Promise.all(promises);
+	const indexes = await Promise.all(promises);
+	indexes.sort((a, b) => a.name.localeCompare(b.name));
+	return indexes;
 }
 
 export async function introspectSchema(

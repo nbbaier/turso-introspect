@@ -22,6 +22,21 @@ interface CommandOptions {
 	verbose?: boolean;
 }
 
+function parseTableList(raw: string | undefined): string[] | undefined {
+	if (!raw) return undefined;
+
+	const values = raw
+		.split(",")
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+
+	if (values.length === 0) {
+		return undefined;
+	}
+
+	return [...new Set(values)];
+}
+
 export async function introspect(
 	database: string | undefined,
 	options: CommandOptions,
@@ -56,6 +71,30 @@ export async function introspect(
 		);
 	}
 
+	const tables = parseTableList(options.tables);
+	const excludeTables = parseTableList(options.excludeTables);
+
+	if (options.tables && (!tables || tables.length === 0)) {
+		throw invalidArgsError(
+			"Invalid --tables: expected a comma-separated list of table names.",
+		);
+	}
+
+	if (options.excludeTables && (!excludeTables || excludeTables.length === 0)) {
+		throw invalidArgsError(
+			"Invalid --exclude-tables: expected a comma-separated list of table names.",
+		);
+	}
+
+	if (tables && excludeTables) {
+		const overlap = tables.filter((table) => excludeTables.includes(table));
+		if (overlap.length > 0) {
+			throw invalidArgsError(
+				`Conflicting table filters: ${overlap.join(", ")} present in both --tables and --exclude-tables.`,
+			);
+		}
+	}
+
 	const client = await createDbClient({
 		database,
 		org: options.org,
@@ -82,10 +121,8 @@ export async function introspect(
 		}
 
 		const introspectOptions: IntrospectOptions = {
-			tables: options.tables ? options.tables.split(",") : undefined,
-			excludeTables: options.excludeTables
-				? options.excludeTables.split(",")
-				: undefined,
+			tables,
+			excludeTables,
 			includeSystem: options.includeSystem,
 		};
 
@@ -107,7 +144,9 @@ export async function introspect(
 		if (format === "json") {
 			output = formatJson(schema);
 		} else {
-			output = formatSql(schema);
+			output = formatSql(schema, {
+				normalizeDefaults: options.normalizeDefaults,
+			});
 		}
 
 		if (options.stdout) {
