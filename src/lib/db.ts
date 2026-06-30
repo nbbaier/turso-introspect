@@ -131,7 +131,7 @@ async function createDatabaseToken(
 	return data.jwt;
 }
 
-export async function getAuthToken(
+async function getAuthToken(
 	database: string,
 	org: string | undefined,
 	tokenFlag?: string,
