@@ -11,7 +11,7 @@ when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| [001](001-test-baseline.md) | Establish a working test baseline with bun test | P1 | M | — | TODO |
+| [001](001-test-baseline.md) | Establish a working test baseline with bun test | P1 | M | — | DONE (unmerged; two parallel impls — see note) |
 | [002](002-packaging-and-ci.md) | Fix TypeScript packaging and add a CI workflow | P2 | S | 001 | TODO |
 | [003](003-diff-ignore-generated-header.md) | Make `diff` ignore the generated header | P1 | S | 001 | TODO |
 | [004](004-fix-view-trigger-filtering.md) | Make table filters treat views and triggers correctly | P1 | M | 001 | TODO |
