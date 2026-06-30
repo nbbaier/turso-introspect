@@ -31,7 +31,7 @@
 		"start": "bun run src/index.ts",
 		"build": "tsdown",
 		"dev": "tsdown --watch",
-		"test": "echo \"Error: no test specified\" && exit 1",
+		"test": "bun test",
 		"prepublishOnly": "npm run build",
 		"check": "biome check .",
 		"fix": "biome check --write --unsafe .",
