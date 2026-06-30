@@ -1,16 +1,8 @@
 # Plan 008: Correct actively-wrong claims in README, SPEC, and IMPROVEMENT-IDEAS
 
-> **Executor instructions**: Follow this plan step by step. Run every
-> verification command and confirm the expected result before moving to the
-> next step. If anything in the "STOP conditions" section occurs, stop and
-> report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md` — unless a reviewer dispatched you and told you they
-> maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- README.md SPEC.md IMPROVEMENT-IDEAS.md`
-> If these files changed since this plan was written, re-locate each quoted
-> passage before editing; if a passage no longer exists, skip that edit and
-> note it in your report.
+> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- README.md SPEC.md IMPROVEMENT-IDEAS.md` If these files changed since this plan was written, re-locate each quoted passage before editing; if a passage no longer exists, skip that edit and note it in your report.
 
 ## Status
 

@@ -1,16 +1,8 @@
 # Plan 001: Establish a working test baseline with bun test
 
-> **Executor instructions**: Follow this plan step by step. Run every
-> verification command and confirm the expected result before moving to the
-> next step. If anything in the "STOP conditions" section occurs, stop and
-> report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md` — unless a reviewer dispatched you and told you they
-> maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- package.json src/`
-> If any in-scope file changed since this plan was written, compare the
-> "Current state" excerpts against the live code before proceeding; on a
-> mismatch, treat it as a STOP condition.
+> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- package.json src/` If any in-scope file changed since this plan was written, compare the "Current state" excerpts against the live code before proceeding; on a mismatch, treat it as a STOP condition.
 
 ## Status
 
@@ -30,11 +22,11 @@ The repo has zero tests and the `test` script is a stub that exits 1. Every othe
 - `package.json:36` — `"test": "echo \"Error: no test specified\" && exit 1"`.
 - No `*.test.ts` or `*.spec.ts` files exist anywhere in the repo.
 - Source modules to be tested (all under `src/lib/`):
-  - `utils.ts` — single function `quoteIdent(name)` that wraps in double quotes and doubles internal quotes.
-  - `retry.ts` — exports `sleep`, `RetryOptions`, `RetryError`, `withRetry(fn, options)`. `withRetry` attempts `fn` up to `retries + 1` times with exponential backoff `baseDelayMs * 2 ** attempt`, then throws `RetryError` wrapping the last error.
-  - `formatter.ts` — exports `formatJson(schema)` and `formatSql(schema, options)`. `formatSql` emits a 3-line comment header, tables in topological FK order (private `sortTablesTopologically`), virtual tables as comments (`isVirtualTableSql` matches `CREATE VIRTUAL TABLE`), indexes only when `origin === "c" && idx.sql`, then views, then triggers. With `options.normalizeDefaults` it uppercases `current_timestamp`/`current_date`/`current_time` after `DEFAULT`.
-  - `db.ts` — exports `resolveDatabaseUrl(database, org)`: passes through `file:`, `libsql://`, `http://`, `https://` URLs; otherwise requires `org` (throws `Error("Organization name is required when using a database name (use --org)")`) and returns `libsql://${database}-${org}.turso.io`.
-  - `schema.ts` — exports `introspectSchema(client, dbName, options)` returning a `Schema` (`{ metadata, tables, views, triggers }`). Filtering via private `shouldSkip`: skips `sqlite_`/`_litestream_`/`_cf_` prefixes unless `options.includeSystem`; skips names in `options.excludeTables`; when `options.tables` is a non-empty array, skips anything not listed.
+   - `utils.ts` — single function `quoteIdent(name)` that wraps in double quotes and doubles internal quotes.
+   - `retry.ts` — exports `sleep`, `RetryOptions`, `RetryError`, `withRetry(fn, options)`. `withRetry` attempts `fn` up to `retries + 1` times with exponential backoff `baseDelayMs * 2 ** attempt`, then throws `RetryError` wrapping the last error.
+   - `formatter.ts` — exports `formatJson(schema)` and `formatSql(schema, options)`. `formatSql` emits a 3-line comment header, tables in topological FK order (private `sortTablesTopologically`), virtual tables as comments (`isVirtualTableSql` matches `CREATE VIRTUAL TABLE`), indexes only when `origin === "c" && idx.sql`, then views, then triggers. With `options.normalizeDefaults` it uppercases `current_timestamp`/`current_date`/`current_time` after `DEFAULT`.
+   - `db.ts` — exports `resolveDatabaseUrl(database, org)`: passes through `file:`, `libsql://`, `http://`, `https://` URLs; otherwise requires `org` (throws `Error("Organization name is required when using a database name (use --org)")`) and returns `libsql://${database}-${org}.turso.io`.
+   - `schema.ts` — exports `introspectSchema(client, dbName, options)` returning a `Schema` (`{ metadata, tables, views, triggers }`). Filtering via private `shouldSkip`: skips `sqlite_`/`_litestream_`/`_cf_` prefixes unless `options.includeSystem`; skips names in `options.excludeTables`; when `options.tables` is a non-empty array, skips anything not listed.
 - Conventions (from `CLAUDE.md`): Bun runtime; test files `*.test.ts` importing from `"bun:test"`; tabs + double quotes (biome); imports of local files use `.js` extensions.
 - `@libsql/client` is a runtime dependency and supports in-memory databases via `createClient({ url: ":memory:" })`.
 
@@ -57,21 +49,22 @@ function shouldSkip(name: string, options: IntrospectOptions): boolean {
 	...
 ```
 
-**Known bug — do not bake it into tests:** `shouldSkip` is also applied to views and triggers by *their own names*, so `--tables users` drops all views/triggers. Plan 004 fixes this. In this plan, write filtering tests **only about tables** (databases without views/triggers in those specific test cases) so the tests survive plan 004 unchanged.
+**Known bug — do not bake it into tests:** `shouldSkip` is also applied to views and triggers by _their own names_, so `--tables users` drops all views/triggers. Plan 004 fixes this. In this plan, write filtering tests **only about tables** (databases without views/triggers in those specific test cases) so the tests survive plan 004 unchanged.
 
 ## Commands you will need
 
-| Purpose   | Command                  | Expected on success |
-|-----------|--------------------------|---------------------|
-| Install   | `bun install`            | exit 0              |
-| Tests     | `bun test`               | all pass, exit 0    |
-| Lint      | `bunx biome check src`   | exit 0              |
+| Purpose | Command                | Expected on success |
+| ------- | ---------------------- | ------------------- |
+| Install | `bun install`          | exit 0              |
+| Tests   | `bun test`             | all pass, exit 0    |
+| Lint    | `bunx biome check src` | exit 0              |
 
 Note: `bun run typecheck` may fail until plan 002 lands (typescript is a peerDependency); do not gate on it here. Note: `bunx biome check .` (whole repo) may flag a local-only `.claude/settings.local.json` — scope lint checks to `src`.
 
 ## Scope
 
 **In scope** (the only files you should modify/create):
+
 - `package.json` (the `test` script line only)
 - `src/lib/utils.test.ts` (create)
 - `src/lib/retry.test.ts` (create)
@@ -80,6 +73,7 @@ Note: `bun run typecheck` may fail until plan 002 lands (typescript is a peerDep
 - `src/lib/schema.test.ts` (create)
 
 **Out of scope** (do NOT touch):
+
 - Any non-test source file. This plan adds tests only; it fixes nothing, even bugs you notice.
 - `tsdown.config.ts` — tsdown only bundles `src/index.ts`; test files won't end up in `dist` regardless.
 - CI configuration (plan 002).
@@ -103,6 +97,7 @@ In `package.json`, change `"test": "echo \"Error: no test specified\" && exit 1"
 Create `src/lib/utils.test.ts` covering: plain name → `"users"`; name with an embedded `"` → doubled (`a"b` → `"a""b"`); empty string → `""""`.
 
 Create `src/lib/retry.test.ts` covering (use `baseDelayMs: 0` so tests are instant):
+
 - resolves immediately on first success, fn called once;
 - fn fails twice then succeeds with `retries: 3` → resolves, fn called 3 times;
 - all attempts fail with `retries: 2` → throws `RetryError`, message contains `"after 3 attempts"`, `error.cause` is the last underlying error;
@@ -133,6 +128,7 @@ Create `src/lib/formatter.test.ts`. Build `Schema` objects literally (import the
 ### Step 4: Unit tests for `resolveDatabaseUrl`
 
 Create `src/lib/db.test.ts`:
+
 - `resolveDatabaseUrl("libsql://x.turso.io")` → returned unchanged (same for `file:`, `http://`, `https://` inputs);
 - `resolveDatabaseUrl("mydb", "myorg")` → `"libsql://mydb-myorg.turso.io"`;
 - `resolveDatabaseUrl("mydb")` (no org) → throws, message contains `"--org"`.
@@ -156,15 +152,16 @@ CREATE TRIGGER posts_touch AFTER UPDATE ON posts BEGIN SELECT 1; END;
 ```
 
 Assert:
+
 - `schema.tables` has exactly `posts` and `users` (sorted by name); `sqlite_*` internals absent.
 - `users` columns include `email` with `notnull === 1` and `type === "TEXT"`; `id` with `pk === 1`.
 - `posts.foreignKeys` has one entry with `table === "users"`, `from === "user_id"`, `to === "id"`.
 - `posts.indexes` contains `idx_posts_user` with `origin === "c"`, `columns` deep-equal `["user_id"]`, and `sql` defined (starts with `CREATE INDEX`).
 - `schema.views` contains `post_titles`; `schema.triggers` contains `posts_touch`.
 - Filtering (tables only — see the known-bug note in Current state; use a second fixture with **only** the two tables, no view/trigger):
-  - `{ tables: ["users"] }` → only `users` returned;
-  - `{ excludeTables: ["posts"] }` → only `users` returned;
-  - default options on a db that also has a table named `_cf_internal` → `_cf_internal` absent; with `{ includeSystem: true }` → present.
+   - `{ tables: ["users"] }` → only `users` returned;
+   - `{ excludeTables: ["posts"] }` → only `users` returned;
+   - default options on a db that also has a table named `_cf_internal` → `_cf_internal` absent; with `{ includeSystem: true }` → present.
 - End-to-end smoke: `formatSql(schema)` output contains `CREATE TABLE users` before `CREATE TABLE posts` (FK dependency order).
 
 **Verify**: `bun test src/lib/schema.test.ts` → all pass.
@@ -175,7 +172,7 @@ Assert:
 
 ## Test plan
 
-This plan *is* the test plan; see steps 2–5 for the case list. There is no existing test to pattern-match — these files become the repo's pattern.
+This plan _is_ the test plan; see steps 2–5 for the case list. There is no existing test to pattern-match — these files become the repo's pattern.
 
 ## Done criteria
 

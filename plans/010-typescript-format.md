@@ -1,16 +1,8 @@
 # Plan 010: Add `--format typescript` — generate TS interfaces from the schema
 
-> **Executor instructions**: Follow this plan step by step. Run every
-> verification command and confirm the expected result before moving to the
-> next step. If anything in the "STOP conditions" section occurs, stop and
-> report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md` — unless a reviewer dispatched you and told you they
-> maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/lib/formatter.ts src/commands/introspect.ts src/index.ts`
-> If `introspect.ts`'s format validation or `formatter.ts` changed since this
-> plan was written, compare against the "Current state" excerpts before
-> proceeding; on a structural mismatch, treat it as a STOP condition.
+> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/lib/formatter.ts src/commands/introspect.ts src/index.ts` If `introspect.ts`'s format validation or `formatter.ts` changed since this plan was written, compare against the "Current state" excerpts before proceeding; on a structural mismatch, treat it as a STOP condition.
 
 ## Status
 

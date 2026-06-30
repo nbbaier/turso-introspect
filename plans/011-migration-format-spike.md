@@ -1,14 +1,8 @@
 # Plan 011: Design spike — a real `--diff-format migration`
 
-> **Executor instructions**: This is a **design/spike plan** — the deliverable
-> is a design document and a throwaway prototype, NOT production code. Follow
-> the steps, honor the STOP conditions, and when done update the status row in
-> `plans/README.md` — unless a reviewer dispatched you and told you they
-> maintain the index.
+> **Executor instructions**: This is a **design/spike plan** — the deliverable is a design document and a throwaway prototype, NOT production code. Follow the steps, honor the STOP conditions, and when done update the status row in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/commands/diff.ts src/lib/schema.ts`
-> Drift here doesn't block a spike, but read whatever changed (especially if
-> plan 003 landed) before writing the design.
+> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/commands/diff.ts src/lib/schema.ts` Drift here doesn't block a spike, but read whatever changed (especially if plan 003 landed) before writing the design.
 
 ## Status
 

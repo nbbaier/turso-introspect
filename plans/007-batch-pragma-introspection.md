@@ -1,16 +1,8 @@
 # Plan 007: Replace per-table PRAGMA round trips with set-based pragma queries
 
-> **Executor instructions**: Follow this plan step by step. Run every
-> verification command and confirm the expected result before moving to the
-> next step. If anything in the "STOP conditions" section occurs, stop and
-> report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md` — unless a reviewer dispatched you and told you they
-> maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/lib/schema.ts`
-> This plan REQUIRES plan 004's changes to `schema.ts` (type-aware `shouldSkip`).
-> If `schema.ts` differs from the post-004 shape described below in any *other*
-> way, treat it as a STOP condition.
+> **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/lib/schema.ts` This plan REQUIRES plan 004's changes to `schema.ts` (type-aware `shouldSkip`). If `schema.ts` differs from the post-004 shape described below in any *other* way, treat it as a STOP condition.
 
 ## Status
 
