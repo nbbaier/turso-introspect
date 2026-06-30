@@ -1,9 +1,3 @@
----
-description: Development guide for turso-introspect CLI
-globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
-alwaysApply: false
----
-
 # Turso Introspect CLI - Development Guide
 
 A CLI tool for introspecting Turso/libsql database schemas. Generates executable SQL schema files and performs schema diffs.
@@ -11,6 +5,7 @@ A CLI tool for introspecting Turso/libsql database schemas. Generates executable
 ## Project Overview
 
 **What it does:**
+
 - Introspects remote Turso/libsql databases to extract schema information
 - Generates executable SQL schema files with proper dependency ordering
 - Supports JSON output format for programmatic access
@@ -18,25 +13,29 @@ A CLI tool for introspecting Turso/libsql database schemas. Generates executable
 - Handles Turso authentication (platform tokens, database tokens, env vars)
 
 **Key features:**
+
 - Tables sorted topologically by foreign key dependencies
 - Supports table filtering (include/exclude specific tables)
 - Handles indexes, views, triggers, and foreign key constraints
 - Virtual table detection (FTS5, R-tree)
-- System table filtering (sqlite_*, _litestream_*, _cf_*)
+- System table filtering (sqlite*\*, \_litestream*_, *cf*_)
 
 ## Tech Stack
 
 **Runtime & Package Manager:**
+
 - **Bun** (primary runtime) - Use `bun` for all commands
 - Node.js compatible but optimized for Bun
 
 **Dependencies:**
+
 - `@libsql/client` - Database client for Turso/libsql
 - `commander` - CLI framework and argument parsing
 - `chalk` - Terminal styling (colored output)
 - `diff` - Schema comparison
 
 **Dev Tools:**
+
 - `tsdown` - Build tool (replaces tsc, esbuild, webpack)
 - `@biomejs/biome` - Linter and formatter (replaces ESLint + Prettier)
 - TypeScript 5.9.3+ (peer dependency)
@@ -83,6 +82,7 @@ src/
 ### Module Responsibilities
 
 #### `src/index.ts`
+
 - Entry point for CLI
 - Uses Commander.js to define commands and options
 - Main command: introspect (default)
@@ -90,6 +90,7 @@ src/
 - Error handling and process exit codes
 
 #### `src/commands/introspect.ts`
+
 - Validates command arguments
 - Creates database client
 - Calls introspection logic
@@ -97,54 +98,61 @@ src/
 - Handles --check flag for connection validation
 
 #### `src/commands/diff.ts`
+
 - Compares two schema sources (databases or files)
 - Uses `diff` library for unified diff output
 - Supports migration format (not fully implemented)
 
 #### `src/lib/db.ts`
+
 - Database connection management
 - URL resolution (handles both full URLs and db names)
 - **Authentication token handling:**
-  - Priority: `--token` flag > `TURSO_AUTH_TOKEN` env > Turso CLI settings
-  - Automatically detects platform tokens vs database tokens
-  - Converts platform tokens to database tokens via Turso API
-  - Reads Turso CLI settings from `~/Library/Application Support/turso/settings.json` (macOS) or `~/.config/turso/settings.json` (Linux)
+   - Priority: `--token` flag > `TURSO_AUTH_TOKEN` env > Turso CLI settings
+   - Automatically detects platform tokens vs database tokens
+   - Converts platform tokens to database tokens via Turso API
+   - Reads Turso CLI settings from `~/Library/Application Support/turso/settings.json` (macOS) or `~/.config/turso/settings.json` (Linux)
 
 #### `src/lib/schema.ts`
+
 - Core introspection logic
 - Queries `sqlite_master` for schema objects
 - Fetches table metadata using PRAGMA statements:
-  - `PRAGMA table_info()` for columns
-  - `PRAGMA foreign_key_list()` for foreign keys
-  - `PRAGMA index_list()` and `PRAGMA index_info()` for indexes
+   - `PRAGMA table_info()` for columns
+   - `PRAGMA foreign_key_list()` for foreign keys
+   - `PRAGMA index_list()` and `PRAGMA index_info()` for indexes
 - Table filtering logic (include/exclude/system tables)
 - TypeScript interfaces for schema objects
 
 #### `src/lib/formatter.ts`
+
 - Formats schema as SQL or JSON
 - **Topological sort** for tables (dependency order)
-  - Ensures tables are created in correct order
-  - Handles circular dependencies gracefully
+   - Ensures tables are created in correct order
+   - Handles circular dependencies gracefully
 - SQL output includes:
-  - Header comment with metadata
-  - CREATE TABLE statements (original SQL from sqlite_master)
-  - CREATE INDEX statements (only explicitly created indexes, origin='c')
-  - Views and triggers
+   - Header comment with metadata
+   - CREATE TABLE statements (original SQL from sqlite_master)
+   - CREATE INDEX statements (only explicitly created indexes, origin='c')
+   - Views and triggers
 - JSON output: structured schema object
 
 #### `src/lib/logger.ts`
+
 - Wrapper around chalk for consistent styling
 - Respects `--quiet` and `--verbose` flags
 - Methods: `info()`, `success()`, `warn()`, `error()`, `verbose()`
 
 #### `src/lib/errors.ts`
+
 - Custom `CliError` class with exit codes
 - Exit codes:
-  - 1: Connection errors
-  - 2: Invalid arguments
-  - 3: Not found errors
+   - 1: Connection errors
+   - 2: Invalid arguments
+   - 3: Not found errors
 
 #### `src/lib/utils.ts`
+
 - `quoteIdent()`: SQL identifier quoting (doubles internal quotes)
 
 ## Build Configuration
@@ -152,6 +160,7 @@ src/
 ### tsdown (Build Tool)
 
 Configuration in `tsdown.config.ts`:
+
 - Entry: `src/index.ts`
 - Format: ESM
 - Platform: Node.js
@@ -163,6 +172,7 @@ The CLI is distributed as a single bundled file with all dependencies included.
 ### TypeScript Configuration
 
 Key settings in `tsconfig.json`:
+
 - Target: ESNext
 - Module: Preserve (for bundler mode)
 - Module resolution: bundler
@@ -176,14 +186,16 @@ Key settings in `tsconfig.json`:
 ### Biome Configuration
 
 Configured in `biome.json`:
+
 - **Formatter:**
-  - Indent style: tabs
-  - Quote style: double quotes
+   - Indent style: tabs
+   - Quote style: double quotes
 - **Linter:** Recommended rules enabled
 - **Auto imports:** Organized on save
 - Git integration enabled (uses .gitignore)
 
 **Running Biome:**
+
 ```bash
 bunx @biomejs/biome check .           # Check all files
 bunx @biomejs/biome check --write .   # Fix issues
@@ -196,6 +208,7 @@ bunx @biomejs/biome format --write .  # Format only
    - Use try-catch with `unknown` type
    - Type guard: `error && typeof error === "object" && "message" in error`
    - Example:
+
    ```typescript
    catch (error: unknown) {
      if (error instanceof CliError) {
@@ -211,6 +224,7 @@ bunx @biomejs/biome format --write .  # Format only
 
 2. **Database row type casting:**
    - libsql rows are loosely typed, always cast:
+
    ```typescript
    const tableName = String(row.name);
    const isUnique = Boolean(row.unique);
@@ -229,6 +243,7 @@ bunx @biomejs/biome format --write .  # Format only
 ### SQLite System Tables
 
 The CLI queries `sqlite_master` table:
+
 ```sql
 SELECT type, name, sql, tbl_name
 FROM sqlite_master
@@ -237,6 +252,7 @@ ORDER BY name
 ```
 
 **Row types:**
+
 - `table` - Tables
 - `view` - Views
 - `trigger` - Triggers
@@ -245,6 +261,7 @@ ORDER BY name
 ### PRAGMA Statements
 
 Used to get detailed metadata:
+
 - `PRAGMA table_info("table_name")` - Column definitions
 - `PRAGMA foreign_key_list("table_name")` - Foreign key constraints
 - `PRAGMA index_list("table_name")` - All indexes on table
@@ -253,6 +270,7 @@ Used to get detailed metadata:
 ### Filtering System Tables
 
 Excluded by default (unless `--include-system`):
+
 - Tables starting with `sqlite_`
 - Tables starting with `_litestream_` (Litestream replication)
 - Tables starting with `_cf_` (Cloudflare/Turso internals)
@@ -268,6 +286,7 @@ Excluded by default (unless `--include-system`):
 5. Connect to database with token
 
 **API endpoint for token generation:**
+
 ```
 POST https://api.turso.tech/v1/organizations/{org}/databases/{db}/auth/tokens
 ```
@@ -275,12 +294,14 @@ POST https://api.turso.tech/v1/organizations/{org}/databases/{db}/auth/tokens
 ## Publishing
 
 Configured in `package.json`:
+
 - Binary: `turso-introspect` → `./dist/index.js`
 - Files included: `dist/` only
 - Access: public (npm)
 - `prepublishOnly` script runs build automatically
 
 **Publishing steps:**
+
 ```bash
 bun run build           # Build to dist/
 npm version patch       # Bump version
@@ -292,11 +313,12 @@ npm publish             # Publish to npm
 **Current state:** No tests implemented yet (`npm test` exits with error)
 
 **When adding tests:**
+
 - Use `bun test` framework
 - Import from `bun:test`:
-  ```typescript
-  import { test, expect, describe } from "bun:test";
-  ```
+   ```typescript
+   import { test, expect, describe } from "bun:test";
+   ```
 - Test files: `*.test.ts` or `*.spec.ts`
 
 ## CLI Usage Examples
@@ -335,13 +357,13 @@ turso-introspect diff prod-db ./local-schema.sql --org myorg
 3. Register command in `src/index.ts` using Commander:
    ```typescript
    program
-     .command("mycommand")
-     .description("...")
-     .argument("<arg>", "...")
-     .option("--flag", "...")
-     .action(async (arg, options) => {
-       await myCommand(arg, options);
-     });
+      .command("mycommand")
+      .description("...")
+      .argument("<arg>", "...")
+      .option("--flag", "...")
+      .action(async (arg, options) => {
+         await myCommand(arg, options);
+      });
    ```
 
 ### Adding a new lib module
@@ -354,6 +376,7 @@ turso-introspect diff prod-db ./local-schema.sql --org myorg
 ### Modifying schema output
 
 Edit `src/lib/formatter.ts`:
+
 - `formatSql()` - SQL generation
 - `formatJson()` - JSON output
 - `sortTablesTopologically()` - Dependency ordering
@@ -361,6 +384,7 @@ Edit `src/lib/formatter.ts`:
 ### Handling new authentication methods
 
 Edit `src/lib/db.ts`:
+
 - Add token source in `getAuthToken()`
 - Update priority chain
 - Handle token detection/conversion
@@ -370,10 +394,10 @@ Edit `src/lib/db.ts`:
 - **SQLite FK limitations:** Cannot use `ALTER TABLE ADD CONSTRAINT FOREIGN KEY`. Must rely on topological sort for creation order.
 - **Virtual tables:** FTS5, R-tree, and other virtual tables should be output as comments (not fully executable).
 - **Index origins:**
-  - `c` - Created explicitly with CREATE INDEX
-  - `u` - Unique constraint (part of CREATE TABLE)
-  - `pk` - Primary key (part of CREATE TABLE)
-  - Only output indexes with origin='c' separately
+   - `c` - Created explicitly with CREATE INDEX
+   - `u` - Unique constraint (part of CREATE TABLE)
+   - `pk` - Primary key (part of CREATE TABLE)
+   - Only output indexes with origin='c' separately
 - **Token types:** Platform tokens (RS256) vs database tokens (HS256) are detected by JWT header algorithm.
 - **Case sensitivity:** SQLite is case-insensitive for identifiers, but Turso might be case-sensitive in some contexts.
 
