@@ -10,7 +10,7 @@ interface Column {
 	pk: number;
 }
 
-interface ForeignKey {
+export interface ForeignKey {
 	id: number;
 	seq: number;
 	table: string;
