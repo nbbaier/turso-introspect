@@ -1,6 +1,6 @@
 # Plan 002: Fix TypeScript packaging and add a CI workflow
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `docs/plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
 > **Drift check (run first)**: `git diff --stat 633046f..HEAD -- package.json .github/` If any in-scope file changed since this plan was written, compare the "Current state" excerpts against the live code before proceeding; on a mismatch, treat it as a STOP condition.
 
@@ -9,7 +9,7 @@
 - **Priority**: P2
 - **Effort**: S
 - **Risk**: LOW
-- **Depends on**: plans/001-test-baseline.md (CI runs `bun test`)
+- **Depends on**: docs/plans/001-test-baseline.md (CI runs `bun test`)
 - **Category**: dx
 - **Planned at**: commit `633046f`, 2026-06-11
 - **Amended**: 2026-07-03 at commit `216dd53` — first execution attempt STOPPED on a pre-existing typecheck failure: commit `1bbd6e0` removed `export` from `interface ForeignKey` (`src/lib/schema.ts:13`) while `src/lib/formatter.test.ts:3` imports it, and the exported `Table` interface embeds `ForeignKey[]`. Added Step 0 to restore the export; scope expanded to that single declaration.
@@ -129,7 +129,7 @@ Machine-checkable. ALL must hold:
 - [ ] `bun run build` exits 0 and `dist/index.js` exists with a `#!/usr/bin/env node` first line (`head -1 dist/index.js`)
 - [ ] `.github/workflows/ci.yml` exists and contains the five run steps above
 - [ ] `git status` shows no modified files outside the in-scope list (note: `dist/` is a build artifact — leave it untracked/unstaged)
-- [ ] `plans/README.md` status row updated
+- [ ] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 

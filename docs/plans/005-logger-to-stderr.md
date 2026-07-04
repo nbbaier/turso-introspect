@@ -1,6 +1,6 @@
 # Plan 005: Route all status logging to stderr so `--stdout` output is pipe-safe
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `docs/plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
 > **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/lib/logger.ts src/commands/introspect.ts` If any in-scope file changed since this plan was written, compare the "Current state" excerpts against the live code before proceeding; on a mismatch, treat it as a STOP condition.
 
@@ -9,7 +9,7 @@
 - **Priority**: P2
 - **Effort**: S
 - **Risk**: LOW
-- **Depends on**: plans/001-test-baseline.md
+- **Depends on**: docs/plans/001-test-baseline.md
 - **Category**: bug
 - **Planned at**: commit `633046f`, 2026-06-11
 
@@ -152,7 +152,7 @@ Machine-checkable. ALL must hold:
 - [ ] `bun test` exits 0 including `src/cli.test.ts`
 - [ ] `bunx biome check src` exits 0
 - [ ] `git status` shows no modified files outside the in-scope list
-- [ ] `plans/README.md` status row updated
+- [ ] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 

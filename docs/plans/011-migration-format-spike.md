@@ -1,6 +1,6 @@
 # Plan 011: Design spike — a real `--diff-format migration`
 
-> **Executor instructions**: This is a **design/spike plan** — the deliverable is a design document and a throwaway prototype, NOT production code. Follow the steps, honor the STOP conditions, and when done update the status row in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
+> **Executor instructions**: This is a **design/spike plan** — the deliverable is a design document and a throwaway prototype, NOT production code. Follow the steps, honor the STOP conditions, and when done update the status row in `docs/plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
 > **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/commands/diff.ts src/lib/schema.ts` Drift here doesn't block a spike, but read whatever changed (especially if plan 003 landed) before writing the design.
 
@@ -9,7 +9,7 @@
 - **Priority**: P3
 - **Effort**: M (spike only; the eventual implementation is L and gets its own plan)
 - **Risk**: LOW (no production code changes)
-- **Depends on**: plans/003-diff-ignore-generated-header.md recommended first (its `stripGeneratedHeader` and equality semantics are the baseline the migration mode builds on)
+- **Depends on**: docs/plans/003-diff-ignore-generated-header.md recommended first (its `stripGeneratedHeader` and equality semantics are the baseline the migration mode builds on)
 - **Category**: direction
 - **Planned at**: commit `633046f`, 2026-06-11
 
@@ -48,12 +48,12 @@ The CLI already advertises `--diff-format migration` — the flag parses, the RE
 ## Scope
 
 **In scope** (the only files you should create/modify):
-- `plans/design/migration-diff-format.md` (create — the deliverable)
+- `docs/plans/design/migration-diff-format.md` (create — the deliverable)
 - `scratch/migration-spike.ts` (create — throwaway prototype; add `scratch/` to `.gitignore` if not ignored, or delete the file before finishing)
 
 **Out of scope** (do NOT touch):
 - ALL production source under `src/` — zero changes, including "harmless" exports.
-- `README.md`/`SPEC.md` — docs change when the feature ships, not at spike time.
+- `README.md`/`docs/SPEC.md` — docs change when the feature ships, not at spike time.
 
 ## Git workflow
 
@@ -99,15 +99,15 @@ In `scratch/migration-spike.ts`, hard-code two small `Schema`-shaped literals (o
 
 ### Step 5: Write the design doc
 
-`plans/design/migration-diff-format.md` must contain: the operation catalogue (step 1), the v1 cut line with rationale (step 2), the file-source decision (step 3), the worked example (step 4), prior-art notes (one paragraph each: sqlite-utils, drizzle-kit, atlas), an implementation sketch (new `src/lib/migration.ts` with `diffSchemas(a: Schema, b: Schema): MigrationStep[]` + a renderer; `diff.ts` branches on format before flattening to SQL strings), an effort estimate for the implementation plan, and an **Open questions** section (must include: rename detection — recommend "out of scope, document as drop+create"; whether `metadata.version`/PRAGMA `user_version` should be stamped; trigger/view dependency ordering on rebuilds).
+`docs/plans/design/migration-diff-format.md` must contain: the operation catalogue (step 1), the v1 cut line with rationale (step 2), the file-source decision (step 3), the worked example (step 4), prior-art notes (one paragraph each: sqlite-utils, drizzle-kit, atlas), an implementation sketch (new `src/lib/migration.ts` with `diffSchemas(a: Schema, b: Schema): MigrationStep[]` + a renderer; `diff.ts` branches on format before flattening to SQL strings), an effort estimate for the implementation plan, and an **Open questions** section (must include: rename detection — recommend "out of scope, document as drop+create"; whether `metadata.version`/PRAGMA `user_version` should be stamped; trigger/view dependency ordering on rebuilds).
 
-**Verify**: doc exists and contains the sections: `## Operation catalogue`, `## v1 scope`, `## File sources`, `## Worked example`, `## Prior art`, `## Implementation sketch`, `## Open questions` (`grep -c '^## ' plans/design/migration-diff-format.md` → ≥ 7).
+**Verify**: doc exists and contains the sections: `## Operation catalogue`, `## v1 scope`, `## File sources`, `## Worked example`, `## Prior art`, `## Implementation sketch`, `## Open questions` (`grep -c '^## ' docs/plans/design/migration-diff-format.md` → ≥ 7).
 
 ### Step 6: Clean up
 
 Delete `scratch/migration-spike.ts` or ensure `scratch/` is gitignored; confirm zero changes under `src/`.
 
-**Verify**: `git status` → only `plans/design/migration-diff-format.md` (and possibly `.gitignore`) added/modified; `bun test` → all pass.
+**Verify**: `git status` → only `docs/plans/design/migration-diff-format.md` (and possibly `.gitignore`) added/modified; `bun test` → all pass.
 
 ## Test plan
 
@@ -117,11 +117,11 @@ None — spike. The prototype's printed output (step 4 verify) is the evidence.
 
 ALL must hold:
 
-- [ ] `plans/design/migration-diff-format.md` exists with the 7 required sections and a worked example produced by the prototype
+- [ ] `docs/plans/design/migration-diff-format.md` exists with the 7 required sections and a worked example produced by the prototype
 - [ ] Recommendation is explicit enough that an implementation plan could be written from the doc alone (a reader can answer: what does v1 emit for each delta class? what happens with file sources? what exits non-zero?)
 - [ ] `git status` shows no changes under `src/`
 - [ ] `bun test` exits 0 (unchanged)
-- [ ] `plans/README.md` status row updated
+- [ ] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 

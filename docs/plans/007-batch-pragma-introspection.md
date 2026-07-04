@@ -1,6 +1,6 @@
 # Plan 007: Replace per-table PRAGMA round trips with set-based pragma queries
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `docs/plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
 > **Drift check (run first)**: `git diff --stat 633046f..HEAD -- src/lib/schema.ts` This plan REQUIRES plan 004's changes to `schema.ts` (type-aware `shouldSkip`). If `schema.ts` differs from the post-004 shape described below in any *other* way, treat it as a STOP condition.
 
@@ -9,7 +9,7 @@
 - **Priority**: P2
 - **Effort**: M
 - **Risk**: MED (relies on pragma table-valued functions being available server-side; mitigated by a retained fallback path)
-- **Depends on**: plans/001-test-baseline.md, plans/004-fix-view-trigger-filtering.md
+- **Depends on**: docs/plans/001-test-baseline.md, docs/plans/004-fix-view-trigger-filtering.md
 - **Category**: perf
 - **Planned at**: commit `633046f`, 2026-06-11
 
@@ -154,7 +154,7 @@ Machine-checkable. ALL must hold:
 - [ ] `grep -n "pragma_table_info" src/lib/schema.ts` → present in the batch query
 - [ ] `bunx biome check src` exits 0
 - [ ] `git status` shows no modified files outside the in-scope list
-- [ ] `plans/README.md` status row updated
+- [ ] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 

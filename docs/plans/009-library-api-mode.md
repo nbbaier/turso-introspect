@@ -1,6 +1,6 @@
 # Plan 009: Expose a programmatic library API alongside the CLI
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `docs/plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
 > **Drift check (run first)**: `git diff --stat 633046f..HEAD -- package.json tsdown.config.ts src/` If `tsdown.config.ts` or `package.json` changed since this plan was written, compare against the "Current state" excerpts before proceeding; on a structural mismatch, treat it as a STOP condition.
 
@@ -9,7 +9,7 @@
 - **Priority**: P3
 - **Effort**: M
 - **Risk**: LOW (purely additive; CLI behavior unchanged)
-- **Depends on**: plans/002-packaging-and-ci.md (declaration emission needs `typescript` in devDependencies); recommended after 003/004 so the exported behavior is the fixed behavior
+- **Depends on**: docs/plans/002-packaging-and-ci.md (declaration emission needs `typescript` in devDependencies); recommended after 003/004 so the exported behavior is the fixed behavior
 - **Category**: direction
 - **Planned at**: commit `633046f`, 2026-06-11
 
@@ -186,7 +186,7 @@ Machine-checkable. ALL must hold:
 - [ ] `bun test` exits 0 including `src/api.test.ts`
 - [ ] `bun run typecheck` and `bunx biome check src` exit 0
 - [ ] `package.json` has `exports`, `main`, `types`; `bin` unchanged
-- [ ] `plans/README.md` status row updated
+- [ ] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 

@@ -1,6 +1,6 @@
 # Plan 006: Clear the `bun audit` vulnerability report
 
-> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
+> **Executor instructions**: Follow this plan step by step. Run every verification command and confirm the expected result before moving to the next step. If anything in the "STOP conditions" section occurs, stop and report — do not improvise. When done, update the status row for this plan in `docs/plans/README.md` — unless a reviewer dispatched you and told you they maintain the index.
 >
 > **Drift check (run first)**: `git diff --stat 633046f..HEAD -- package.json bun.lock` If these files changed since this plan was written, re-run `bun audit` first — the vulnerability set may already differ; on a mismatch with "Current state", treat it as a STOP condition.
 
@@ -9,7 +9,7 @@
 - **Priority**: P2
 - **Effort**: S
 - **Risk**: LOW
-- **Depends on**: plans/001-test-baseline.md (tests are the regression gate for the updates)
+- **Depends on**: docs/plans/001-test-baseline.md (tests are the regression gate for the updates)
 - **Category**: security / deps
 - **Planned at**: commit `633046f`, 2026-06-11
 
@@ -108,7 +108,7 @@ Machine-checkable. ALL must hold:
 - [ ] `bun test` exits 0
 - [ ] `bun run build` exits 0
 - [ ] `git diff --stat` touches only `bun.lock` (and `package.json` only if step 3 was needed)
-- [ ] `plans/README.md` status row updated
+- [ ] `docs/plans/README.md` status row updated
 
 ## STOP conditions
 
