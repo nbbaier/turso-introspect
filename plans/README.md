@@ -9,7 +9,7 @@ Each executor: read the plan fully before starting, honor its STOP conditions, a
 | Plan                                       | Title                                                          | Priority | Effort | Depends on                | Status |
 | ------------------------------------------ | -------------------------------------------------------------- | -------- | ------ | ------------------------- | ------ |
 | [001](001-test-baseline.md)                | Establish a working test baseline with bun test                | P1       | M      | —                         | DONE   |
-| [002](002-packaging-and-ci.md)             | Fix TypeScript packaging and add a CI workflow                 | P2       | S      | 001                       | TODO   |
+| [002](002-packaging-and-ci.md)             | Fix TypeScript packaging and add a CI workflow                 | P2       | S      | 001                       | DONE (on `advisor/002-packaging-and-ci`, awaiting merge) |
 | [003](003-diff-ignore-generated-header.md) | Make `diff` ignore the generated header                        | P1       | S      | 001                       | TODO   |
 | [004](004-fix-view-trigger-filtering.md)   | Make table filters treat views and triggers correctly          | P1       | M      | 001                       | TODO   |
 | [005](005-logger-to-stderr.md)             | Route all status logging to stderr (`--stdout` pipe safety)    | P2       | S      | 001                       | TODO   |
