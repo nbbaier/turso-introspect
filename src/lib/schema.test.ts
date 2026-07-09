@@ -132,6 +132,7 @@ describe("introspectSchema filtering (views and triggers)", () => {
 				"CREATE TRIGGER users_touch AFTER UPDATE ON users BEGIN SELECT 1; END",
 				"CREATE TRIGGER logs_touch AFTER UPDATE ON logs BEGIN SELECT 1; END",
 				"CREATE VIEW user_names AS SELECT email FROM users",
+				"CREATE TRIGGER user_names_write INSTEAD OF INSERT ON user_names BEGIN SELECT 1; END",
 			],
 			"write",
 		);
@@ -147,7 +148,10 @@ describe("introspectSchema filtering (views and triggers)", () => {
 		});
 
 		expect(schema.tables.map((t) => t.name)).toEqual(["users"]);
-		expect(schema.triggers.map((t) => t.name)).toEqual(["users_touch"]);
+		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
+			"user_names_write",
+			"users_touch",
+		]);
 		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
 	});
 
@@ -157,11 +161,14 @@ describe("introspectSchema filtering (views and triggers)", () => {
 		});
 
 		expect(schema.tables.map((t) => t.name)).toEqual(["users"]);
-		expect(schema.triggers.map((t) => t.name)).toEqual(["users_touch"]);
+		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
+			"user_names_write",
+			"users_touch",
+		]);
 		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
 	});
 
-	test("options.excludeTables can still explicitly exclude a view by name", async () => {
+	test("options.excludeTables on a view drops the view and its INSTEAD OF triggers", async () => {
 		const schema = await introspectSchema(client, "test-db", {
 			excludeTables: ["user_names"],
 		});
@@ -180,6 +187,7 @@ describe("introspectSchema filtering (views and triggers)", () => {
 		expect(schema.tables.map((t) => t.name).sort()).toEqual(["logs", "users"]);
 		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
 			"logs_touch",
+			"user_names_write",
 			"users_touch",
 		]);
 		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
