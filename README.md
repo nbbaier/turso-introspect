@@ -102,6 +102,8 @@ turso-introspect mydb --org myorg --tables users,posts,comments
 turso-introspect mydb --org myorg --exclude-tables logs,sessions
 ```
 
+Note: triggers are included or excluded based on the table they are defined on (their `ON <table>` clause), not their own name, so `--tables users` keeps triggers defined on `users` and `--exclude-tables logs` drops triggers defined on `logs`. Views are always included regardless of the `--tables` allow-list — since they can reference multiple tables and aren't tables themselves — but can still be dropped explicitly by their own name with `--exclude-tables`. System-prefixed objects (`sqlite_*`, `_litestream_*`, `_cf_*`) are always excluded unless `--include-system` is passed.
+
 ## Schema Diff Command
 
 Compare schemas between databases or files:

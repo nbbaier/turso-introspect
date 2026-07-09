@@ -149,12 +149,17 @@ export async function introspectSchema(
 		const name = String(row.name);
 		const type = String(row.type);
 		const sql = String(row.sql);
+		const tblName = String(row.tbl_name);
 
 		if (type === "index") {
 			continue;
 		}
 
-		if (shouldSkip(name, options)) {
+		if (type !== "table" && type !== "view" && type !== "trigger") {
+			continue;
+		}
+
+		if (shouldSkip(name, type, tblName, options)) {
 			continue;
 		}
 
@@ -203,27 +208,39 @@ export async function introspectSchema(
 	};
 }
 
-function shouldSkip(name: string, options: IntrospectOptions): boolean {
-	if (
-		!options.includeSystem &&
-		(name.startsWith("sqlite_") ||
-			name.startsWith("_litestream_") ||
-			name.startsWith("_cf_"))
-	) {
+function shouldSkip(
+	name: string,
+	type: "table" | "view" | "trigger",
+	tblName: string,
+	options: IntrospectOptions,
+): boolean {
+	// For triggers, filter decisions are based on the table they belong to.
+	const filterName = type === "trigger" ? tblName : name;
+
+	if (!options.includeSystem && isSystemName(filterName)) {
 		return true;
 	}
 
-	if (options.excludeTables?.includes(name)) {
+	if (options.excludeTables?.includes(filterName)) {
 		return true;
 	}
 
 	if (
+		type !== "view" &&
 		options.tables &&
 		options.tables.length > 0 &&
-		!options.tables.includes(name)
+		!options.tables.includes(filterName)
 	) {
 		return true;
 	}
 
 	return false;
+}
+
+function isSystemName(name: string): boolean {
+	return (
+		name.startsWith("sqlite_") ||
+		name.startsWith("_litestream_") ||
+		name.startsWith("_cf_")
+	);
 }
