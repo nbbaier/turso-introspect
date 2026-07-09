@@ -133,15 +133,22 @@ export async function introspectSchema(
 	const views: View[] = [];
 	const triggers: Trigger[] = [];
 	const indexSqlMap = new Map<string, string>();
+	const viewNames = new Set<string>();
 
 	const masterResult = await client.execute(
 		"SELECT type, name, sql, tbl_name FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name",
 	);
 
-	// First pass: collect all index SQL definitions
+	// First pass: collect all index SQL definitions and view names.
+	// View names are needed before filtering because an INSTEAD OF trigger's
+	// tbl_name refers to its view, and the trigger must follow the view's
+	// filter verdict.
 	for (const row of masterResult.rows) {
 		if (row.type === "index") {
 			indexSqlMap.set(String(row.name), String(row.sql));
+		}
+		if (row.type === "view") {
+			viewNames.add(String(row.name));
 		}
 	}
 
@@ -149,12 +156,17 @@ export async function introspectSchema(
 		const name = String(row.name);
 		const type = String(row.type);
 		const sql = String(row.sql);
+		const tblName = String(row.tbl_name);
 
 		if (type === "index") {
 			continue;
 		}
 
-		if (shouldSkip(name, options)) {
+		if (type !== "table" && type !== "view" && type !== "trigger") {
+			continue;
+		}
+
+		if (shouldSkip(name, type, tblName, viewNames, options)) {
 			continue;
 		}
 
@@ -203,27 +215,46 @@ export async function introspectSchema(
 	};
 }
 
-function shouldSkip(name: string, options: IntrospectOptions): boolean {
-	if (
-		!options.includeSystem &&
-		(name.startsWith("sqlite_") ||
-			name.startsWith("_litestream_") ||
-			name.startsWith("_cf_"))
-	) {
+function shouldSkip(
+	name: string,
+	type: "table" | "view" | "trigger",
+	tblName: string,
+	viewNames: Set<string>,
+	options: IntrospectOptions,
+): boolean {
+	// For triggers, filter decisions are based on the object they belong to
+	// (a table, or a view for INSTEAD OF triggers).
+	const filterName = type === "trigger" ? tblName : name;
+
+	if (!options.includeSystem && isSystemName(filterName)) {
 		return true;
 	}
 
-	if (options.excludeTables?.includes(name)) {
+	if (options.excludeTables?.includes(filterName)) {
 		return true;
 	}
 
+	// Views are exempt from the --tables allow-list, and so are triggers
+	// defined on a view (INSTEAD OF triggers) — they follow the view's verdict.
+	const exemptFromAllowList =
+		type === "view" || (type === "trigger" && viewNames.has(filterName));
+
 	if (
+		!exemptFromAllowList &&
 		options.tables &&
 		options.tables.length > 0 &&
-		!options.tables.includes(name)
+		!options.tables.includes(filterName)
 	) {
 		return true;
 	}
 
 	return false;
+}
+
+function isSystemName(name: string): boolean {
+	return (
+		name.startsWith("sqlite_") ||
+		name.startsWith("_litestream_") ||
+		name.startsWith("_cf_")
+	);
 }

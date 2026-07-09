@@ -120,6 +120,93 @@ describe("introspectSchema filtering (tables only)", () => {
 	});
 });
 
+describe("introspectSchema filtering (views and triggers)", () => {
+	let client: Client;
+
+	beforeEach(async () => {
+		client = createClient({ url: ":memory:" });
+		await client.batch(
+			[
+				"CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)",
+				"CREATE TABLE logs (id INTEGER PRIMARY KEY, message TEXT)",
+				"CREATE TRIGGER users_touch AFTER UPDATE ON users BEGIN SELECT 1; END",
+				"CREATE TRIGGER logs_touch AFTER UPDATE ON logs BEGIN SELECT 1; END",
+				"CREATE VIEW user_names AS SELECT email FROM users",
+				"CREATE TRIGGER user_names_write INSTEAD OF INSERT ON user_names BEGIN SELECT 1; END",
+			],
+			"write",
+		);
+	});
+
+	afterEach(() => {
+		client.close();
+	});
+
+	test("options.tables allow-list keeps triggers on the allowed table and drops the rest, but keeps all views", async () => {
+		const schema = await introspectSchema(client, "test-db", {
+			tables: ["users"],
+		});
+
+		expect(schema.tables.map((t) => t.name)).toEqual(["users"]);
+		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
+			"user_names_write",
+			"users_touch",
+		]);
+		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
+	});
+
+	test("options.excludeTables drops triggers on the excluded table but keeps views", async () => {
+		const schema = await introspectSchema(client, "test-db", {
+			excludeTables: ["logs"],
+		});
+
+		expect(schema.tables.map((t) => t.name)).toEqual(["users"]);
+		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
+			"user_names_write",
+			"users_touch",
+		]);
+		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
+	});
+
+	test("options.excludeTables on a view drops the view and its INSTEAD OF triggers", async () => {
+		const schema = await introspectSchema(client, "test-db", {
+			excludeTables: ["user_names"],
+		});
+
+		expect(schema.tables.map((t) => t.name).sort()).toEqual(["logs", "users"]);
+		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
+			"logs_touch",
+			"users_touch",
+		]);
+		expect(schema.views.map((v) => v.name)).toEqual([]);
+	});
+
+	test("default options include all tables, triggers, and views", async () => {
+		const schema = await introspectSchema(client, "test-db");
+
+		expect(schema.tables.map((t) => t.name).sort()).toEqual(["logs", "users"]);
+		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
+			"logs_touch",
+			"user_names_write",
+			"users_touch",
+		]);
+		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
+	});
+
+	test("a view referencing an excluded table is still emitted", async () => {
+		const schema = await introspectSchema(client, "test-db", {
+			excludeTables: ["users"],
+		});
+
+		expect(schema.tables.map((t) => t.name)).toEqual(["logs"]);
+		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
+		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
+			"logs_touch",
+			"user_names_write",
+		]);
+	});
+});
+
 describe("introspectSchema system table filtering", () => {
 	let client: Client;
 
@@ -129,6 +216,7 @@ describe("introspectSchema system table filtering", () => {
 			[
 				"CREATE TABLE users (id INTEGER PRIMARY KEY)",
 				"CREATE TABLE _cf_internal (id INTEGER PRIMARY KEY)",
+				"CREATE TRIGGER cf_touch AFTER UPDATE ON _cf_internal BEGIN SELECT 1; END",
 			],
 			"write",
 		);
@@ -148,5 +236,21 @@ describe("introspectSchema system table filtering", () => {
 			includeSystem: true,
 		});
 		expect(schema.tables.map((t) => t.name)).toContain("_cf_internal");
+	});
+
+	test("excludes triggers on system-prefixed tables by default, even when the trigger name has no system prefix", async () => {
+		const schema = await introspectSchema(client, "test-db");
+
+		expect(schema.tables.map((t) => t.name)).not.toContain("_cf_internal");
+		expect(schema.triggers.map((t) => t.name)).not.toContain("cf_touch");
+	});
+
+	test("includes triggers on system-prefixed tables when includeSystem is set", async () => {
+		const schema = await introspectSchema(client, "test-db", {
+			includeSystem: true,
+		});
+
+		expect(schema.tables.map((t) => t.name)).toContain("_cf_internal");
+		expect(schema.triggers.map((t) => t.name)).toContain("cf_touch");
 	});
 });
