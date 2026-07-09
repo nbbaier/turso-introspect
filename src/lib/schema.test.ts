@@ -192,6 +192,19 @@ describe("introspectSchema filtering (views and triggers)", () => {
 		]);
 		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
 	});
+
+	test("a view referencing an excluded table is still emitted", async () => {
+		const schema = await introspectSchema(client, "test-db", {
+			excludeTables: ["users"],
+		});
+
+		expect(schema.tables.map((t) => t.name)).toEqual(["logs"]);
+		expect(schema.views.map((v) => v.name)).toEqual(["user_names"]);
+		expect(schema.triggers.map((t) => t.name).sort()).toEqual([
+			"logs_touch",
+			"user_names_write",
+		]);
+	});
 });
 
 describe("introspectSchema system table filtering", () => {
@@ -203,6 +216,7 @@ describe("introspectSchema system table filtering", () => {
 			[
 				"CREATE TABLE users (id INTEGER PRIMARY KEY)",
 				"CREATE TABLE _cf_internal (id INTEGER PRIMARY KEY)",
+				"CREATE TRIGGER cf_touch AFTER UPDATE ON _cf_internal BEGIN SELECT 1; END",
 			],
 			"write",
 		);
@@ -222,5 +236,21 @@ describe("introspectSchema system table filtering", () => {
 			includeSystem: true,
 		});
 		expect(schema.tables.map((t) => t.name)).toContain("_cf_internal");
+	});
+
+	test("excludes triggers on system-prefixed tables by default, even when the trigger name has no system prefix", async () => {
+		const schema = await introspectSchema(client, "test-db");
+
+		expect(schema.tables.map((t) => t.name)).not.toContain("_cf_internal");
+		expect(schema.triggers.map((t) => t.name)).not.toContain("cf_touch");
+	});
+
+	test("includes triggers on system-prefixed tables when includeSystem is set", async () => {
+		const schema = await introspectSchema(client, "test-db", {
+			includeSystem: true,
+		});
+
+		expect(schema.tables.map((t) => t.name)).toContain("_cf_internal");
+		expect(schema.triggers.map((t) => t.name)).toContain("cf_touch");
 	});
 });
