@@ -10,13 +10,13 @@ export class Logger {
 
 	info(message: string): void {
 		if (!this.options.quiet) {
-			console.log(chalk.blue(message));
+			console.error(chalk.blue(message));
 		}
 	}
 
 	success(message: string): void {
 		if (!this.options.quiet) {
-			console.log(chalk.green(message));
+			console.error(chalk.green(message));
 		}
 	}
 
@@ -28,7 +28,7 @@ export class Logger {
 
 	verbose(message: string): void {
 		if (this.options.verbose && !this.options.quiet) {
-			console.log(chalk.gray(message));
+			console.error(chalk.gray(message));
 		}
 	}
 
