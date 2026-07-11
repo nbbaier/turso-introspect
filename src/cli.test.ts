@@ -7,6 +7,22 @@ import { createClient } from "@libsql/client";
 let dir: string;
 let dbPath: string;
 
+async function runCli(...args: string[]) {
+	const proc = Bun.spawn(["bun", "run", "src/index.ts", ...args], {
+		cwd: process.cwd(),
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+
+	const [stdout, stderr, exitCode] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+		proc.exited,
+	]);
+
+	return { stdout, stderr, exitCode };
+}
+
 beforeAll(async () => {
 	dir = await fs.mkdtemp(path.join(os.tmpdir(), "turso-introspect-cli-"));
 	dbPath = path.join(dir, "fixture.db");
@@ -21,15 +37,7 @@ afterAll(async () => {
 
 describe("CLI stdout/stderr stream separation", () => {
 	test("--stdout -v keeps status logging off stdout", async () => {
-		const proc = Bun.spawn(
-			["bun", "run", "src/index.ts", dbPath, "--stdout", "-v"],
-			{ cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
-		);
-		const [stdout, stderr] = await Promise.all([
-			new Response(proc.stdout).text(),
-			new Response(proc.stderr).text(),
-		]);
-		const exitCode = await proc.exited;
+		const { stdout, stderr, exitCode } = await runCli(dbPath, "--stdout", "-v");
 
 		expect(exitCode).toBe(0);
 		expect(stdout).toContain("CREATE TABLE t");
@@ -39,15 +47,7 @@ describe("CLI stdout/stderr stream separation", () => {
 	});
 
 	test("--stdout -q suppresses stderr status output", async () => {
-		const proc = Bun.spawn(
-			["bun", "run", "src/index.ts", dbPath, "--stdout", "-q"],
-			{ cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
-		);
-		const [stdout, stderr] = await Promise.all([
-			new Response(proc.stdout).text(),
-			new Response(proc.stderr).text(),
-		]);
-		const exitCode = await proc.exited;
+		const { stdout, stderr, exitCode } = await runCli(dbPath, "--stdout", "-q");
 
 		expect(exitCode).toBe(0);
 		expect(stderr.trim()).toBe("");
