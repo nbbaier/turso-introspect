@@ -1,7 +1,7 @@
 import type { Client } from "@libsql/client";
 import { quoteIdent } from "./utils.js";
 
-interface Column {
+export interface Column {
 	cid: number;
 	name: string;
 	type: string;
@@ -38,12 +38,12 @@ export interface Table {
 	indexes: Index[];
 }
 
-interface View {
+export interface View {
 	name: string;
 	sql: string;
 }
 
-interface Trigger {
+export interface Trigger {
 	name: string;
 	sql: string;
 }
