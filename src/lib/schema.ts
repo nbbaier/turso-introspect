@@ -124,15 +124,126 @@ async function getIndexes(
 	return indexes;
 }
 
+function groupRowsBy(
+	rows: SqliteRow[],
+	key: "table_name" | "index_name",
+): Map<string, SqliteRow[]> {
+	const grouped = new Map<string, SqliteRow[]>();
+
+	for (const row of rows) {
+		const value = String(row[key]);
+		const group = grouped.get(value);
+		if (group) {
+			group.push(row);
+		} else {
+			grouped.set(value, [row]);
+		}
+	}
+
+	return grouped;
+}
+
+async function introspectTablesBatch(
+	client: Client,
+	tableNames: string[],
+	tableSqlMap: Map<string, string>,
+	indexSqlMap: Map<string, string>,
+): Promise<Table[]> {
+	const [columnsRes, foreignKeysRes, indexesRes, indexColumnsRes] =
+		await Promise.all([
+			client.execute(`
+				SELECT m.name AS table_name, p.cid, p.name, p.type, p."notnull", p.dflt_value, p.pk
+				FROM sqlite_master m JOIN pragma_table_info(m.name) p
+				WHERE m.type = 'table' AND m.sql IS NOT NULL
+				ORDER BY m.name, p.cid
+			`),
+			client.execute(`
+				SELECT m.name AS table_name, f.id, f.seq, f."table", f."from", f."to", f.on_update, f.on_delete, f."match"
+				FROM sqlite_master m JOIN pragma_foreign_key_list(m.name) f
+				WHERE m.type = 'table' AND m.sql IS NOT NULL
+				ORDER BY m.name, f.id, f.seq
+			`),
+			client.execute(`
+				SELECT m.name AS table_name, il.name, il."unique", il.origin, il.partial
+				FROM sqlite_master m JOIN pragma_index_list(m.name) il
+				WHERE m.type = 'table' AND m.sql IS NOT NULL
+				ORDER BY m.name, il.name
+			`),
+			client.execute(`
+				SELECT m.name AS table_name, il.name AS index_name, ii.seqno, ii.cid, ii.name
+				FROM sqlite_master m JOIN pragma_index_list(m.name) il JOIN pragma_index_info(il.name) ii
+				WHERE m.type = 'table' AND m.sql IS NOT NULL
+				ORDER BY m.name, il.name, ii.seqno
+			`),
+		]);
+
+	const columnsByTable = groupRowsBy(columnsRes.rows, "table_name");
+	const foreignKeysByTable = groupRowsBy(foreignKeysRes.rows, "table_name");
+	const indexesByTable = groupRowsBy(indexesRes.rows, "table_name");
+	const columnsByIndex = groupRowsBy(indexColumnsRes.rows, "index_name");
+
+	return tableNames.map((name) => {
+		const indexes = (indexesByTable.get(name) ?? []).map((row) => {
+			const indexName = String(row.name);
+			return {
+				name: indexName,
+				unique: Boolean(row.unique),
+				origin: String(row.origin),
+				partial: Boolean(row.partial),
+				columns: (columnsByIndex.get(indexName) ?? []).map((column) =>
+					String(column.name),
+				),
+				sql: indexSqlMap.get(indexName),
+			};
+		});
+		indexes.sort((a, b) => a.name.localeCompare(b.name));
+
+		return {
+			name,
+			sql: tableSqlMap.get(name) ?? "",
+			columns: (columnsByTable.get(name) ?? []).map(mapColumn),
+			foreignKeys: (foreignKeysByTable.get(name) ?? []).map(mapForeignKey),
+			indexes,
+		};
+	});
+}
+
+async function introspectTablesSequential(
+	client: Client,
+	tableNames: string[],
+	tableSqlMap: Map<string, string>,
+	indexSqlMap: Map<string, string>,
+): Promise<Table[]> {
+	const tables: Table[] = [];
+
+	for (const name of tableNames) {
+		const [columnsRes, fkRes] = await Promise.all([
+			client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
+			client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
+		]);
+
+		tables.push({
+			name,
+			sql: tableSqlMap.get(name) ?? "",
+			columns: columnsRes.rows.map(mapColumn),
+			foreignKeys: fkRes.rows.map(mapForeignKey),
+			indexes: await getIndexes(client, name, indexSqlMap),
+		});
+	}
+
+	return tables;
+}
+
 export async function introspectSchema(
 	client: Client,
 	dbName: string,
 	options: IntrospectOptions = {},
 ): Promise<Schema> {
-	const tables: Table[] = [];
 	const views: View[] = [];
 	const triggers: Trigger[] = [];
 	const indexSqlMap = new Map<string, string>();
+	const tableNames: string[] = [];
+	const tableSqlMap = new Map<string, string>();
 	const viewNames = new Set<string>();
 
 	const masterResult = await client.execute(
@@ -181,24 +292,27 @@ export async function introspectSchema(
 		}
 
 		if (type === "table") {
-			// Tables need further introspection
-			const [columnsRes, fkRes] = await Promise.all([
-				client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
-				client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
-			]);
-
-			const columns = columnsRes.rows.map(mapColumn);
-			const foreignKeys = fkRes.rows.map(mapForeignKey);
-			const indexes = await getIndexes(client, name, indexSqlMap);
-
-			tables.push({
-				name,
-				sql,
-				columns,
-				foreignKeys,
-				indexes,
-			});
+			tableNames.push(name);
+			tableSqlMap.set(name, sql);
 		}
+	}
+
+	let tables: Table[];
+	try {
+		tables = await introspectTablesBatch(
+			client,
+			tableNames,
+			tableSqlMap,
+			indexSqlMap,
+		);
+	} catch (_error: unknown) {
+		// Pragma table-valued functions may be unavailable on some servers.
+		tables = await introspectTablesSequential(
+			client,
+			tableNames,
+			tableSqlMap,
+			indexSqlMap,
+		);
 	}
 
 	tables.sort((a, b) => a.name.localeCompare(b.name));

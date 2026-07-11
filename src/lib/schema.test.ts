@@ -73,6 +73,42 @@ describe("introspectSchema", () => {
 		expect(schema.triggers.map((t) => t.name)).toContain("posts_touch");
 	});
 
+	test("falls back to sequential introspection when pragma table-valued functions are unavailable", async () => {
+		const fallbackClient = new Proxy(client, {
+			get(target, property, receiver) {
+				if (property === "execute") {
+					return (statement: Parameters<Client["execute"]>[0]) => {
+						const sql = String(statement);
+						if (sql.includes("pragma_table_info")) {
+							return Promise.reject(
+								new Error("pragma table-valued functions are unavailable"),
+							);
+						}
+						return target.execute(statement);
+					};
+				}
+				return Reflect.get(target, property, receiver);
+			},
+		});
+
+		const schema = await introspectSchema(fallbackClient, "test-db");
+
+		expect(schema.tables.map((table) => table.name)).toEqual([
+			"posts",
+			"users",
+		]);
+		expect(schema.tables.find((table) => table.name === "posts")).toMatchObject(
+			{
+				foreignKeys: [{ table: "users", from: "user_id", to: "id" }],
+				indexes: [{ name: "idx_posts_user", columns: ["user_id"] }],
+			},
+		);
+		expect(schema.views.map((view) => view.name)).toEqual(["post_titles"]);
+		expect(schema.triggers.map((trigger) => trigger.name)).toEqual([
+			"posts_touch",
+		]);
+	});
+
 	test("formatSql emits tables in FK dependency order end-to-end", async () => {
 		const schema = await introspectSchema(client, "test-db");
 		const output = formatSql(schema);
