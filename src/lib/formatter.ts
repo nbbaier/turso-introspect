@@ -1,4 +1,4 @@
-import type { Schema, Table } from "./schema";
+import type { Schema, Table } from "./schema.js";
 
 export function formatJson(schema: Schema): string {
 	return JSON.stringify(schema, null, 2);

@@ -122,6 +122,31 @@ turso-introspect diff ./dev.db libsql://production.turso.io
 turso-introspect diff db1 db2 --org myorg --diff-format migration
 ```
 
+## Programmatic API
+
+Install the package in your application:
+
+```bash
+bun add turso-introspect
+```
+
+```typescript
+import {
+	createDbClient,
+	formatSql,
+	introspectSchema,
+} from "turso-introspect";
+
+const client = await createDbClient({ database: "mydb", org: "myorg" });
+const schema = await introspectSchema(client, "mydb");
+const sql = formatSql(schema);
+
+console.log(sql);
+client.close();
+```
+
+The `Schema` and related TypeScript types are also exported. The API is experimental until 1.0; the CLI is the stable interface.
+
 ## CLI Reference
 
 ```
