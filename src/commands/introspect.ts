@@ -116,9 +116,7 @@ export async function introspect(
 			}
 		}
 
-		if (!options.stdout) {
-			logger.info(`Introspecting ${database}...`);
-		}
+		logger.info(`Introspecting ${database}...`);
 
 		const introspectOptions: IntrospectOptions = {
 			tables,
