@@ -143,6 +143,20 @@ function groupRowsBy(
 	return grouped;
 }
 
+function isPragmaTableValuedFunctionUnavailable(error: unknown): boolean {
+	const message =
+		error && typeof error === "object" && "message" in error
+			? String(error.message)
+			: String(error);
+
+	return (
+		/pragma_(?:table_info|foreign_key_list|index_list|index_info)/i.test(
+			message,
+		) &&
+		/(?:no such|not found|unavailable|unsupported|not supported)/i.test(message)
+	);
+}
+
 async function introspectTablesBatch(
 	client: Client,
 	tableNames: string[],
@@ -319,7 +333,11 @@ export async function introspectSchema(
 			tableSqlMap,
 			indexSqlMap,
 		);
-	} catch (_error: unknown) {
+	} catch (error: unknown) {
+		if (!isPragmaTableValuedFunctionUnavailable(error)) {
+			throw error;
+		}
+
 		// Pragma table-valued functions may be unavailable on some servers.
 		tables = await introspectTablesSequential(
 			client,

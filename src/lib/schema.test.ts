@@ -81,7 +81,7 @@ describe("introspectSchema", () => {
 						const sql = String(statement);
 						if (sql.includes("pragma_table_info")) {
 							return Promise.reject(
-								new Error("pragma table-valued functions are unavailable"),
+								new Error("no such table: pragma_table_info"),
 							);
 						}
 						return target.execute(statement);
@@ -107,6 +107,33 @@ describe("introspectSchema", () => {
 		expect(schema.triggers.map((trigger) => trigger.name)).toEqual([
 			"posts_touch",
 		]);
+	});
+
+	test("propagates non-compatibility batch errors without sequential fallback", async () => {
+		const networkError = new Error("network timeout");
+		let sequentialQueries = 0;
+		const failingClient = new Proxy(client, {
+			get(target, property, receiver) {
+				if (property === "execute") {
+					return (statement: Parameters<Client["execute"]>[0]) => {
+						const sql = String(statement);
+						if (sql.includes("pragma_table_info")) {
+							return Promise.reject(networkError);
+						}
+						if (sql.includes("PRAGMA table_info")) {
+							sequentialQueries += 1;
+						}
+						return target.execute(statement);
+					};
+				}
+				return Reflect.get(target, property, receiver);
+			},
+		});
+
+		await expect(introspectSchema(failingClient, "test-db")).rejects.toBe(
+			networkError,
+		);
+		expect(sequentialQueries).toBe(0);
 	});
 
 	test("formatSql emits tables in FK dependency order end-to-end", async () => {
