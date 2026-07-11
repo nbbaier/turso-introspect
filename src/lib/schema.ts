@@ -149,32 +149,46 @@ async function introspectTablesBatch(
 	tableSqlMap: Map<string, string>,
 	indexSqlMap: Map<string, string>,
 ): Promise<Table[]> {
+	if (tableNames.length === 0) {
+		return [];
+	}
+
+	const tableValues = tableNames.map(() => "(?)").join(", ");
+	const filteredTables = `WITH filtered_tables(name) AS (VALUES ${tableValues})`;
 	const [columnsRes, foreignKeysRes, indexesRes, indexColumnsRes] =
 		await Promise.all([
-			client.execute(`
+			client.execute(
+				`${filteredTables}
 				SELECT m.name AS table_name, p.cid, p.name, p.type, p."notnull", p.dflt_value, p.pk
-				FROM sqlite_master m JOIN pragma_table_info(m.name) p
-				WHERE m.type = 'table' AND m.sql IS NOT NULL
+				FROM filtered_tables m JOIN pragma_table_info(m.name) p
 				ORDER BY m.name, p.cid
-			`),
-			client.execute(`
+			`,
+				tableNames,
+			),
+			client.execute(
+				`${filteredTables}
 				SELECT m.name AS table_name, f.id, f.seq, f."table", f."from", f."to", f.on_update, f.on_delete, f."match"
-				FROM sqlite_master m JOIN pragma_foreign_key_list(m.name) f
-				WHERE m.type = 'table' AND m.sql IS NOT NULL
+				FROM filtered_tables m JOIN pragma_foreign_key_list(m.name) f
 				ORDER BY m.name, f.id, f.seq
-			`),
-			client.execute(`
+			`,
+				tableNames,
+			),
+			client.execute(
+				`${filteredTables}
 				SELECT m.name AS table_name, il.name, il."unique", il.origin, il.partial
-				FROM sqlite_master m JOIN pragma_index_list(m.name) il
-				WHERE m.type = 'table' AND m.sql IS NOT NULL
+				FROM filtered_tables m JOIN pragma_index_list(m.name) il
 				ORDER BY m.name, il.name
-			`),
-			client.execute(`
+			`,
+				tableNames,
+			),
+			client.execute(
+				`${filteredTables}
 				SELECT m.name AS table_name, il.name AS index_name, ii.seqno, ii.cid, ii.name
-				FROM sqlite_master m JOIN pragma_index_list(m.name) il JOIN pragma_index_info(il.name) ii
-				WHERE m.type = 'table' AND m.sql IS NOT NULL
+				FROM filtered_tables m JOIN pragma_index_list(m.name) il JOIN pragma_index_info(il.name) ii
 				ORDER BY m.name, il.name, ii.seqno
-			`),
+			`,
+				tableNames,
+			),
 		]);
 
 	const columnsByTable = groupRowsBy(columnsRes.rows, "table_name");
