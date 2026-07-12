@@ -31,6 +31,9 @@ turso-introspect mydb --org myorg -o ./schemas/mydb.sql
 # JSON output
 turso-introspect mydb --org myorg --format json
 
+# TypeScript output
+turso-introspect mydb --org myorg --format typescript
+
 # Write to stdout
 turso-introspect mydb --org myorg --stdout
 ```
@@ -91,6 +94,24 @@ Produces executable SQL with:
 ### JSON
 
 Structured output with categorized schema objects.
+
+### TypeScript
+
+Produces row interfaces and a `Tables` index for type-safe application code:
+
+```ts
+export interface User {
+	id: number;
+	email: string;
+}
+
+export interface Tables {
+	users: User;
+}
+```
+
+Columns declared as primary keys are emitted as non-nullable, even when SQLite's
+metadata does not mark them `NOT NULL`.
 
 ## Table Filtering
 
@@ -158,9 +179,9 @@ Arguments:
 Options:
   --org <name>          Organization name (required when using db name)
   --token <token>       Authentication token (overrides TURSO_AUTH_TOKEN)
-  -o, --output <path>   Output file path (default: {db}-schema.{sql|json})
+  -o, --output <path>   Output file path (default: {db}-schema.{sql|json|ts})
   --stdout              Write to stdout instead of file
-  --format <type>       Output format: sql (default) or json
+  --format <type>       Output format: sql (default), json, or typescript
   --tables <list>       Comma-separated list of tables to include
   --exclude-tables <l>  Comma-separated list of tables to exclude
   --include-system      Include SQLite/libsql system tables

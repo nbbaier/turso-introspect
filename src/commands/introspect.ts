@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import { createDbClient } from "../lib/db.js";
 import { CliError, connectionError, invalidArgsError } from "../lib/errors.js";
 import { formatJson, formatSql } from "../lib/formatter.js";
+import { formatTypescript } from "../lib/formatter-ts.js";
 import { Logger } from "../lib/logger.js";
 import { type IntrospectOptions, introspectSchema } from "../lib/schema.js";
 
@@ -47,10 +48,11 @@ export async function introspect(
 		throw invalidArgsError("Database argument is required.");
 	}
 
-	const format = options.format ?? "sql";
-	if (format !== "sql" && format !== "json") {
+	const requestedFormat = options.format ?? "sql";
+	const format = requestedFormat === "ts" ? "typescript" : requestedFormat;
+	if (format !== "sql" && format !== "json" && format !== "typescript") {
 		throw invalidArgsError(
-			`Invalid --format: "${format}". Use "sql" or "json".`,
+			`Invalid --format: "${format}". Use "sql", "json", or "typescript".`,
 		);
 	}
 
@@ -141,6 +143,8 @@ export async function introspect(
 		let output = "";
 		if (format === "json") {
 			output = formatJson(schema);
+		} else if (format === "typescript") {
+			output = formatTypescript(schema);
 		} else {
 			output = formatSql(schema, {
 				normalizeDefaults: options.normalizeDefaults,
@@ -150,7 +154,8 @@ export async function introspect(
 		if (options.stdout) {
 			console.log(output);
 		} else {
-			const defaultFilename = `${database.replace(/[^a-zA-Z0-9]/g, "_")}-schema.${format}`;
+			const extension = format === "typescript" ? "ts" : format;
+			const defaultFilename = `${database.replace(/[^a-zA-Z0-9]/g, "_")}-schema.${extension}`;
 			const outputPath = options.output || defaultFilename;
 			await fs.writeFile(outputPath, output);
 			logger.success(`Schema saved to ${outputPath}`);

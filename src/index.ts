@@ -24,7 +24,11 @@ program
 		"Output file path (default: {db}-schema.{sql|json})",
 	)
 	.option("--stdout", "Write to stdout instead of file")
-	.option("--format <type>", "Output format: sql (default) or json", "sql")
+	.option(
+		"--format <type>",
+		"Output format: sql (default), json, or typescript",
+		"sql",
+	)
 	.option("--tables <list>", "Comma-separated list of tables to include")
 	.option(
 		"--exclude-tables <list>",
