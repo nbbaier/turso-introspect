@@ -21,10 +21,14 @@ program
 	)
 	.option(
 		"-o, --output <path>",
-		"Output file path (default: {db}-schema.{sql|json})",
+		"Output file path (default: {db}-schema.{sql|json|ts})",
 	)
 	.option("--stdout", "Write to stdout instead of file")
-	.option("--format <type>", "Output format: sql (default) or json", "sql")
+	.option(
+		"--format <type>",
+		"Output format: sql (default), json, or typescript",
+		"sql",
+	)
 	.option("--tables <list>", "Comma-separated list of tables to include")
 	.option(
 		"--exclude-tables <list>",
