@@ -4,7 +4,11 @@ import { CliError, connectionError, invalidArgsError } from "../lib/errors.js";
 import { formatJson, formatSql } from "../lib/formatter.js";
 import { formatTypescript } from "../lib/formatter-ts.js";
 import { Logger } from "../lib/logger.js";
-import { type IntrospectOptions, introspectSchema } from "../lib/schema.js";
+import {
+	type IntrospectOptions,
+	introspectSchema,
+	type Schema,
+} from "../lib/schema.js";
 
 interface CommandOptions {
 	org?: string;
@@ -21,6 +25,42 @@ interface CommandOptions {
 	retryDelay?: number;
 	quiet?: boolean;
 	verbose?: boolean;
+}
+
+interface OutputFormatDescriptor {
+	extension: string;
+	render: (
+		schema: Schema,
+		options: Pick<CommandOptions, "normalizeDefaults">,
+	) => string;
+}
+
+const outputFormats = new Map<string, OutputFormatDescriptor>([
+	[
+		"sql",
+		{
+			extension: "sql",
+			render: (schema, options) =>
+				formatSql(schema, {
+					normalizeDefaults: options.normalizeDefaults,
+				}),
+		},
+	],
+	["json", { extension: "json", render: (schema) => formatJson(schema) }],
+	[
+		"typescript",
+		{ extension: "ts", render: (schema) => formatTypescript(schema) },
+	],
+]);
+
+const outputFormatAliases = new Map([["ts", "typescript"]]);
+
+function resolveOutputFormat(
+	requestedFormat: string,
+): OutputFormatDescriptor | undefined {
+	const normalizedFormat =
+		outputFormatAliases.get(requestedFormat) ?? requestedFormat;
+	return outputFormats.get(normalizedFormat);
 }
 
 function parseTableList(raw: string | undefined): string[] | undefined {
@@ -49,10 +89,10 @@ export async function introspect(
 	}
 
 	const requestedFormat = options.format ?? "sql";
-	const format = requestedFormat === "ts" ? "typescript" : requestedFormat;
-	if (format !== "sql" && format !== "json" && format !== "typescript") {
+	const format = resolveOutputFormat(requestedFormat);
+	if (!format) {
 		throw invalidArgsError(
-			`Invalid --format: "${format}". Use "sql", "json", or "typescript".`,
+			`Invalid --format: "${requestedFormat}". Use "sql", "json", or "typescript".`,
 		);
 	}
 
@@ -140,22 +180,12 @@ export async function introspect(
 			`Found ${schema.tables.length} tables, ${schema.views.length} views, ${schema.triggers.length} triggers`,
 		);
 
-		let output = "";
-		if (format === "json") {
-			output = formatJson(schema);
-		} else if (format === "typescript") {
-			output = formatTypescript(schema);
-		} else {
-			output = formatSql(schema, {
-				normalizeDefaults: options.normalizeDefaults,
-			});
-		}
+		const output = format.render(schema, options);
 
 		if (options.stdout) {
 			console.log(output);
 		} else {
-			const extension = format === "typescript" ? "ts" : format;
-			const defaultFilename = `${database.replace(/[^a-zA-Z0-9]/g, "_")}-schema.${extension}`;
+			const defaultFilename = `${database.replace(/[^a-zA-Z0-9]/g, "_")}-schema.${format.extension}`;
 			const outputPath = options.output || defaultFilename;
 			await fs.writeFile(outputPath, output);
 			logger.success(`Schema saved to ${outputPath}`);

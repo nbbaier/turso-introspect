@@ -9,6 +9,21 @@ import {
 } from "./formatter-ts.js";
 import type { Schema } from "./schema.js";
 
+function expectTypescriptCompiles(output: string): void {
+	const directory = mkdtempSync(join(tmpdir(), "turso-introspect-types-"));
+	const outputPath = join(directory, "schema.ts");
+	try {
+		writeFileSync(outputPath, output);
+		const result = Bun.spawnSync(
+			["bunx", "tsc", "--noEmit", "--strict", "--ignoreConfig", outputPath],
+			{ timeout: 15_000 },
+		);
+		expect(result.exitCode).toBe(0);
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
+	}
+}
+
 describe("sqliteTypeToTs", () => {
 	test.each([
 		["INTEGER", "number"],
@@ -28,6 +43,7 @@ describe("toInterfaceName", () => {
 		["users", "Users"],
 		["user_posts", "UserPosts"],
 		["2fa_codes", "T2faCodes"],
+		["-", "Table"],
 	])("converts table name %s to %s", (tableName, expected) => {
 		expect(toInterfaceName(tableName)).toBe(expected);
 	});
@@ -82,6 +98,34 @@ describe("formatTypescript", () => {
 					foreignKeys: [],
 					indexes: [],
 				},
+				{
+					name: "a-b",
+					sql: 'CREATE TABLE "a-b" (id INTEGER PRIMARY KEY)',
+					columns: [],
+					foreignKeys: [],
+					indexes: [],
+				},
+				{
+					name: "a_b",
+					sql: "CREATE TABLE a_b (id INTEGER PRIMARY KEY)",
+					columns: [],
+					foreignKeys: [],
+					indexes: [],
+				},
+				{
+					name: "-",
+					sql: 'CREATE TABLE "-" (id INTEGER PRIMARY KEY)',
+					columns: [],
+					foreignKeys: [],
+					indexes: [],
+				},
+				{
+					name: "tables",
+					sql: "CREATE TABLE tables (id INTEGER PRIMARY KEY)",
+					columns: [],
+					foreignKeys: [],
+					indexes: [],
+				},
 			],
 			views: [],
 			triggers: [],
@@ -92,24 +136,15 @@ describe("formatTypescript", () => {
 		expect(output).toContain("id: number;");
 		expect(output).toContain('"email address": string | null;');
 		expect(output).toContain('"audit-log": AuditLog;');
+		expect(output).toContain("export interface AB {");
+		expect(output).toContain("export interface ABRow {");
+		expect(output).toContain('"-": Table;');
+		expect(output).not.toContain("export interface  {");
+		expect(output).toContain("export interface TablesRow {");
+		expect(output).toContain("\ttables: TablesRow;");
 
-		const directory = mkdtempSync(join(tmpdir(), "turso-introspect-types-"));
-		const outputPath = join(directory, "schema.ts");
-		try {
-			writeFileSync(outputPath, output);
-			const result = Bun.spawnSync([
-				"bunx",
-				"tsc",
-				"--noEmit",
-				"--strict",
-				"--ignoreConfig",
-				outputPath,
-			]);
-			expect(result.exitCode).toBe(0);
-		} finally {
-			rmSync(directory, { recursive: true, force: true });
-		}
-	});
+		expectTypescriptCompiles(output);
+	}, 15_000);
 
 	test("marks virtual table interfaces", () => {
 		const schema: Schema = {
