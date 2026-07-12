@@ -42,6 +42,7 @@ describe("toInterfaceName", () => {
 	test.each([
 		["users", "Users"],
 		["user_posts", "UserPosts"],
+		["USER_POSTS", "UserPosts"],
 		["2fa_codes", "T2faCodes"],
 		["-", "Table"],
 	])("converts table name %s to %s", (tableName, expected) => {

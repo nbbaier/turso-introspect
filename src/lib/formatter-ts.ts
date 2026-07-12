@@ -21,7 +21,10 @@ export function toInterfaceName(tableName: string): string {
 	const name = tableName
 		.split(/[^A-Za-z0-9]+/)
 		.filter(Boolean)
-		.map((part) => `${part[0]?.toUpperCase()}${part.slice(1)}`)
+		.map((part) => {
+			const normalizedPart = part.toLowerCase();
+			return `${normalizedPart[0]?.toUpperCase()}${normalizedPart.slice(1)}`;
+		})
 		.join("");
 
 	if (name.length === 0) return "Table";
