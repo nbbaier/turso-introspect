@@ -126,6 +126,22 @@ describe("formatTypescript", () => {
 					foreignKeys: [],
 					indexes: [],
 				},
+				{
+					name: "uint8_array",
+					sql: "CREATE TABLE uint8_array (payload BLOB NOT NULL)",
+					columns: [
+						{
+							cid: 0,
+							name: "payload",
+							type: "BLOB",
+							notnull: 1,
+							dflt_value: null,
+							pk: 0,
+						},
+					],
+					foreignKeys: [],
+					indexes: [],
+				},
 			],
 			views: [],
 			triggers: [],
@@ -142,6 +158,8 @@ describe("formatTypescript", () => {
 		expect(output).not.toContain("export interface  {");
 		expect(output).toContain("export interface TablesRow {");
 		expect(output).toContain("\ttables: TablesRow;");
+		expect(output).toContain("export interface Uint8ArrayRow {");
+		expect(output).toContain("\tpayload: Uint8Array;");
 
 		expectTypescriptCompiles(output);
 	}, 15_000);

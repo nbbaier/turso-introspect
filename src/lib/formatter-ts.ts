@@ -33,7 +33,7 @@ function formatPropertyName(name: string): string {
 }
 
 function createInterfaceNames(tableNames: string[]): Map<string, string> {
-	const usedNames = new Set(["Tables"]);
+	const usedNames = new Set(["Tables", "Uint8Array"]);
 	const interfaceNames = new Map<string, string>();
 
 	for (const tableName of tableNames) {

@@ -100,13 +100,13 @@ Structured output with categorized schema objects.
 Produces row interfaces and a `Tables` index for type-safe application code:
 
 ```ts
-export interface User {
+export interface Users {
 	id: number;
 	email: string;
 }
 
 export interface Tables {
-	users: User;
+	users: Users;
 }
 ```
 
