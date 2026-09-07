@@ -109,6 +109,51 @@ describe("introspectSchema", () => {
 		]);
 	});
 
+	test("fallback introspection handles more tables than one concurrency batch", async () => {
+		const tableDdl = Array.from(
+			{ length: 20 },
+			(_, i) => `CREATE TABLE t${i} (id INTEGER PRIMARY KEY)`,
+		);
+		await client.batch(tableDdl, "write");
+
+		const fallbackClient = new Proxy(client, {
+			get(target, property, receiver) {
+				if (property === "execute") {
+					return (statement: Parameters<Client["execute"]>[0]) => {
+						const sql = String(statement);
+						if (sql.includes("pragma_table_info")) {
+							return Promise.reject(
+								new Error("no such table: pragma_table_info"),
+							);
+						}
+						return target.execute(statement);
+					};
+				}
+				return Reflect.get(target, property, receiver);
+			},
+		});
+
+		const schema = await introspectSchema(fallbackClient, "test-db");
+
+		const names = schema.tables.map((table) => table.name);
+		expect(names).toHaveLength(22);
+		for (let i = 0; i < 20; i++) {
+			expect(names).toContain(`t${i}`);
+		}
+
+		const first = schema.tables.find((table) => table.name === "t0");
+		expect(first?.columns).toEqual([
+			{
+				cid: 0,
+				name: "id",
+				type: "INTEGER",
+				notnull: 0,
+				dflt_value: null,
+				pk: 1,
+			},
+		]);
+	});
+
 	test("propagates non-compatibility batch errors without sequential fallback", async () => {
 		const networkError = new Error("network timeout");
 		let sequentialQueries = 0;

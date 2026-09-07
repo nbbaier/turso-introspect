@@ -236,7 +236,12 @@ async function introspectTablesBatch(
 	});
 }
 
-async function introspectTablesSequential(
+// How many tables to introspect concurrently in the per-table PRAGMA
+// fallback. Bounded so a schema with hundreds of tables does not fire
+// hundreds of simultaneous requests at the server.
+const PRAGMA_INTROSPECT_CONCURRENCY = 16;
+
+async function introspectTablesWithPragmas(
 	client: Client,
 	tableNames: string[],
 	tableSqlMap: Map<string, string>,
@@ -244,19 +249,29 @@ async function introspectTablesSequential(
 ): Promise<Table[]> {
 	const tables: Table[] = [];
 
-	for (const name of tableNames) {
-		const [columnsRes, fkRes] = await Promise.all([
-			client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
-			client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
-		]);
+	// Per-table PRAGMA lookups are independent of one another, so introspect
+	// several tables at once instead of one at a time. Each table still runs
+	// its column and foreign key queries in parallel, and its indexes in
+	// parallel via getIndexes.
+	for (let i = 0; i < tableNames.length; i += PRAGMA_INTROSPECT_CONCURRENCY) {
+		const batch = tableNames.slice(i, i + PRAGMA_INTROSPECT_CONCURRENCY);
+		const results = await Promise.all(
+			batch.map(async (name) => {
+				const [columnsRes, fkRes] = await Promise.all([
+					client.execute(`PRAGMA table_info(${quoteIdent(name)})`),
+					client.execute(`PRAGMA foreign_key_list(${quoteIdent(name)})`),
+				]);
 
-		tables.push({
-			name,
-			sql: tableSqlMap.get(name) ?? "",
-			columns: columnsRes.rows.map(mapColumn),
-			foreignKeys: fkRes.rows.map(mapForeignKey),
-			indexes: await getIndexes(client, name, indexSqlMap),
-		});
+				return {
+					name,
+					sql: tableSqlMap.get(name) ?? "",
+					columns: columnsRes.rows.map(mapColumn),
+					foreignKeys: fkRes.rows.map(mapForeignKey),
+					indexes: await getIndexes(client, name, indexSqlMap),
+				};
+			}),
+		);
+		tables.push(...results);
 	}
 
 	return tables;
@@ -339,7 +354,7 @@ export async function introspectSchema(
 		}
 
 		// Pragma table-valued functions may be unavailable on some servers.
-		tables = await introspectTablesSequential(
+		tables = await introspectTablesWithPragmas(
 			client,
 			tableNames,
 			tableSqlMap,
