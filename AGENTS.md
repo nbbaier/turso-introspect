@@ -9,6 +9,7 @@ Run `bun install` first in any fresh checkout or worktree (it also installs the 
 - `bun run ci`: the full gate, identical to GitHub CI (check, typecheck, test, build). Green `bun run ci` is the done criterion.
 - `bun run fix`: apply Biome fixes; the pre-commit hook does this for staged files.
 - `bun run src/index.ts --help`: run the CLI from source.
+- `scripts/pr-verify.sh <pr> [--keep]`: verify a PR when reviewing: fetches fresh `main` and the PR head into a detached worktree, installs from the frozen lockfile, and runs `bun run ci`.
 
 Other scripts are in `package.json`.
 
