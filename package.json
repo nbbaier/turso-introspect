@@ -56,7 +56,7 @@
 		"@types/bun": "^1.4.2",
 		"@types/node": "^25.9.9",
 		"lefthook": "^2.1.17",
-		"tsdown": "^0.21.7",
+		"tsdown": "^0.23.0",
 		"typescript": "^6.0.2"
 	},
 	"dependencies": {
