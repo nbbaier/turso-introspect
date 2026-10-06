@@ -4,7 +4,7 @@ Bun/TypeScript CLI and library that introspects Turso/libsql (and local SQLite) 
 
 ## Commands
 
-Run `bun install` first in any fresh checkout or worktree (it also installs the lefthook pre-commit hook). Use the repo's own `tsc`/`biome` via scripts, not `bunx tsc`.
+Run `bun install` first in any fresh checkout or worktree. Bun skips the root `prepare` script, so install the lefthook pre-commit hook once per clone with `bunx lefthook install` (worktrees share it). Use the repo's own `tsc`/`biome` via scripts, not `bunx tsc`.
 
 - `bun run ci`: the full gate, identical to GitHub CI (check, typecheck, test, build). Green `bun run ci` is the done criterion.
 - `bun run fix`: apply Biome fixes; the pre-commit hook does this for staged files.
