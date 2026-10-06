@@ -9,7 +9,7 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # tsdown runs under node and requires ^22.18.0 || ^24.11.0 || >=26.0.0.
       - uses: actions/setup-node@v5
         with:
