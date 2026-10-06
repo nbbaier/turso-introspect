@@ -46,7 +46,7 @@
 		"fix": "biome check --write --unsafe .",
 		"typecheck": "tsc --noEmit",
 		"ci": "bun run check && bun run typecheck && bun test && bun run build",
-		"prepare": "lefthook install"
+		"prepare": "node scripts/install-hooks.js"
 	},
 	"publishConfig": {
 		"access": "public"
