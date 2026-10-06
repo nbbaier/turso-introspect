@@ -4,6 +4,8 @@ A CLI tool to introspect the database schema of a Turso/libsql database. Point i
 
 ## Installation
 
+Requires Node.js 22 or later (or Bun).
+
 ```bash
 # npm
 npm install -g turso-introspect
