@@ -181,7 +181,7 @@ Arguments:
 Options:
   --org <name>          Organization name (required when using db name)
   --token <token>       Authentication token (overrides TURSO_AUTH_TOKEN)
-  -o, --output <path>   Output file path (default: {db}-schema.{sql|json|ts})
+  -o, --output <path>   Output file path, or "-" for stdout (default: {db}-schema.{sql|json|ts})
   --stdout              Write to stdout instead of file
   --format <type>       Output format: sql (default), json, or typescript
   --tables <list>       Comma-separated list of tables to include

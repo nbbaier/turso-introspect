@@ -182,7 +182,7 @@ export async function introspect(
 
 		const output = format.render(schema, options);
 
-		if (options.stdout) {
+		if (options.stdout || options.output === "-") {
 			console.log(output);
 		} else {
 			const defaultFilename = `${database.replace(/[^a-zA-Z0-9]/g, "_")}-schema.${format.extension}`;
