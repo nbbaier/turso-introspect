@@ -21,7 +21,7 @@ program
 	)
 	.option(
 		"-o, --output <path>",
-		"Output file path (default: {db}-schema.{sql|json|ts})",
+		'Output file path, or "-" for stdout (default: {db}-schema.{sql|json|ts})',
 	)
 	.option("--stdout", "Write to stdout instead of file")
 	.option(

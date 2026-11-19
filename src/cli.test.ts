@@ -7,9 +7,11 @@ import { createClient } from "@libsql/client";
 let dir: string;
 let dbPath: string;
 
-async function runCli(...args: string[]) {
-	const proc = Bun.spawn(["bun", "run", "src/index.ts", ...args], {
-		cwd: process.cwd(),
+const cliEntry = path.resolve("src/index.ts");
+
+async function runCliIn(cwd: string, ...args: string[]) {
+	const proc = Bun.spawn(["bun", "run", cliEntry, ...args], {
+		cwd,
 		stdout: "pipe",
 		stderr: "pipe",
 	});
@@ -21,6 +23,10 @@ async function runCli(...args: string[]) {
 	]);
 
 	return { stdout, stderr, exitCode };
+}
+
+async function runCli(...args: string[]) {
+	return runCliIn(process.cwd(), ...args);
 }
 
 beforeAll(async () => {
@@ -52,5 +58,45 @@ describe("CLI stdout/stderr stream separation", () => {
 		expect(exitCode).toBe(0);
 		expect(stderr.trim()).toBe("");
 		expect(stdout).toContain("CREATE TABLE t");
+	});
+});
+
+describe("-o - writes to stdout", () => {
+	test("writes the schema to stdout and creates no '-' file", async () => {
+		const workDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "turso-introspect-dash-"),
+		);
+		try {
+			const { stdout, exitCode } = await runCliIn(workDir, dbPath, "-o", "-");
+
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("CREATE TABLE t");
+			expect(await fs.readdir(workDir)).not.toContain("-");
+		} finally {
+			await fs.rm(workDir, { recursive: true, force: true });
+		}
+	});
+
+	test("-o - -v keeps status logging off stdout", async () => {
+		const workDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "turso-introspect-dash-"),
+		);
+		try {
+			const { stdout, stderr, exitCode } = await runCliIn(
+				workDir,
+				dbPath,
+				"-o",
+				"-",
+				"-v",
+			);
+
+			expect(exitCode).toBe(0);
+			expect(stdout).toContain("CREATE TABLE t");
+			expect(stdout).not.toContain("Introspecting");
+			expect(stderr).toContain("Found 1 tables");
+			expect(await fs.readdir(workDir)).not.toContain("-");
+		} finally {
+			await fs.rm(workDir, { recursive: true, force: true });
+		}
 	});
 });
